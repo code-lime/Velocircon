@@ -1,0 +1,107 @@
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags: [ "*" ]
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  GITHUB_OWNER: ${{ github.repository_owner }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  GITHUB_PACKAGE_USERNAME: ${{ github.repository_owner }}
+  GITHUB_PACKAGE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'oracle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with: 
+          gradle-version: current
+
+      - name: Build
+        run: gradle build
+
+      - name: Publish
+        run: gradle publish
+
+      - name: Get single output jar
+        id: output_jar
+        run: echo "JAR=$(ls -1 build/libs/*.jar | head -n 1)" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: metadata
+        run: |
+          JAR_PATH=${{ steps.output_jar.outputs.JAR }}
+          JSON_IN_JAR=velocity-plugin.json
+          JSON_OUT=build/libs/metadata.json
+      
+          unzip -p "$JAR_PATH" "$JSON_IN_JAR" > "$JSON_OUT"
+      
+          if [ -s "$JSON_OUT" ]; then
+            echo "METADATA=$JSON_OUT" >> $GITHUB_OUTPUT
+          else
+            echo "JSON file not found or empty!"
+            exit 1
+          fi
+
+      - name: Upload archive to artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jars
+          path: |
+            ${{ steps.output_jar.outputs.JAR }}
+            ${{ steps.metadata.outputs.METADATA }}
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref_type == 'tag'
+    steps:
+      - name: Download archive's from artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./**/*.jar
+      - name: Read metadata
+        id: metadata
+        run: |
+          CONFIG_FILE=metadata.json
+
+          jq -r '.name as $v | "name=\($v)"' "$CONFIG_FILE" >> "$GITHUB_OUTPUT"
+          jq -r '.version as $v | "version=\($v)"' "$CONFIG_FILE" >> "$GITHUB_OUTPUT"
+      - name: Collect .jar files
+        id: jars
+        run: |
+          FILES=$(find . -type f -name "*.jar" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+      - name: Modrinth Release
+        uses: cloudnode-pro/modrinth-publish@v2
+        with:
+          project: ${{ vars.MODRINTH_PROJECT_ID }}
+          version: ${{ steps.metadata.outputs.version }}
+          loaders: 'velocity'
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          files: ${{ steps.jars.outputs.files }}
