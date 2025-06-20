@@ -40,14 +40,14 @@ public class RconService
         InetSocketAddress address = new InetSocketAddress(config.host(), config.port());
 
         return disable()
-                .handle((_, _) -> {
+                .handle((disabled, e) -> {
                     if (!config.enable())
                         return CompletableFuture.completedFuture((Void)null);
                     this.password = config.password();
                     return this.binder.bind(address, config)
-                            .handle((s, _) -> {
-                                if (s != null)
-                                    this.channels = s;
+                            .handle((channel, ex) -> {
+                                if (channel != null)
+                                    this.channels = channel;
                                 return (Void)null;
                             });
                 })
@@ -66,7 +66,7 @@ public class RconService
                 })
                 .map(NettyFutureUtils::toCompletableFuture)
                 .orElseGet(() -> CompletableFuture.completedFuture(null))
-                .whenComplete((_, ex) -> {
+                .whenComplete((v, ex) -> {
                     if (ex != null)
                         logger.error("Error RCON shutting down", ex);
                     this.channels = null;
