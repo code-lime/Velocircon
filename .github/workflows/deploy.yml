@@ -46,7 +46,7 @@ jobs:
 
       - name: Get single output jar
         id: output_jar
-        run: echo "JAR=$(ls -1 build/libs/*.jar | head -n 1)" >> $GITHUB_OUTPUT
+        run: echo "JAR=$(ls -1 build/libs/*.jar | grep -v '\-sources\.jar' | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Extract metadata
         id: metadata
