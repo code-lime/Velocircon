@@ -29,26 +29,6 @@ tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
 }
 //</editor-fold>
 
-//<editor-fold desc="Settings: Maven">
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from(components["java"])
-        }
-    }
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/${System.getenv("GITHUB_REPOSITORY")}")
-            credentials {
-                username = System.getenv("GITHUB_OWNER")
-                password = System.getenv("GITHUB_TOKEN")
-            }
-        }
-    }
-}
-//</editor-fold>
-
 //<editor-fold desc="Settings: Libraries">
 //<editor-fold desc="Settings: Libraries: Netty (All)">
 dependencies {
