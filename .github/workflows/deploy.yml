@@ -79,12 +79,8 @@ jobs:
       - name: Download archive's from artifact
         uses: actions/download-artifact@v4
         with:
+          name: jars
           path: .
-      - name: GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            ./**/*.jar
       - name: Read metadata
         id: metadata
         run: |
@@ -97,6 +93,11 @@ jobs:
         run: |
           FILES=$(find . -type f -name "*.jar" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "files=$FILES" >> $GITHUB_OUTPUT
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./**/*.jar
       - name: Modrinth Release
         uses: cloudnode-pro/modrinth-publish@v2
         with:
