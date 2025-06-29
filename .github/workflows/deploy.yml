@@ -41,9 +41,6 @@ jobs:
       - name: Build
         run: gradle build
 
-      - name: Publish
-        run: gradle publish
-
       - name: Get single output jar
         id: output_jar
         run: echo "JAR=$(ls -1 build/libs/*.jar | grep -v '\-sources\.jar' | head -n 1)" >> $GITHUB_OUTPUT
