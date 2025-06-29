@@ -1,7 +1,17 @@
+buildscript {
+    configurations.classpath.resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'org.ow2.asm') {
+            details.useVersion '9.5'
+            details.because 'Shadow plugin needs ASM ≥9.5 to parse Java 21 classes'
+        }
+    }
+}
+
 plugins {
     id 'java-library'
     id 'maven-publish'
     id "fr.brouillard.oss.gradle.jgitver" version "+"
+    id "com.github.johnrengelman.shadow" version "+"
 }
 
 //<editor-fold desc="Settings: Plugin">
@@ -22,12 +32,17 @@ println "Project version: $version"
 
 configureTemplates([
         pluginName: "${name}",
-        pluginId: "${name}".toLowerCase().replaceAll("[.:/]", "-")
+        pluginId: "${name}".toLowerCase().replaceAll("[.:/]", "-"),
+        bStatsId: "${bStatsId}",
 ])
 tasks.withType(org.gradle.jvm.tasks.Jar).configureEach {
     archiveBaseName.set(project.name)
 }
 //</editor-fold>
+
+configurations {
+    relocate
+}
 
 //<editor-fold desc="Settings: Libraries">
 //<editor-fold desc="Settings: Libraries: Netty (All)">
@@ -46,4 +61,21 @@ dependencies {
     implementation "net.kyori:adventure-platform-facet:${versionAdventureFaset}"
 }
 //</editor-fold>
+//<editor-fold desc="Settings: Libraries: BStats">
+dependencies {
+    compileOnly "org.bstats:bstats-velocity:${versionBStats}"
+    relocate "org.bstats:bstats-velocity:${versionBStats}"
+}
+shadowJar {
+    relocate 'org.bstats', "org.lime.velocircon.bstats"
+}
 //</editor-fold>
+//</editor-fold>
+
+shadowJar {
+    archiveClassifier.set('')
+    configurations = [project.configurations.relocate]
+}
+artifacts {
+    archives tasks.shadowJar
+}
