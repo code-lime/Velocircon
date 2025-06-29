@@ -6,6 +6,7 @@ import io.netty.channel.group.ChannelGroup;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.translation.GlobalTranslator;
 import org.jetbrains.annotations.Nullable;
 import org.lime.velocircon.server.RconBinder;
 import org.lime.velocircon.server.RconServer;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -96,7 +98,8 @@ public class RconService
                                 lines = Iterables.concat(lines, Collections.singleton(Component.text("Internal server error").color(NamedTextColor.RED)));
                             else if (!state)
                                 lines = Iterables.concat(Collections.singleton(Component.text("No such command").color(NamedTextColor.RED)), lines);
-                            return Component.join(JoinConfiguration.newlines(), lines);
+                            Component result = Component.join(JoinConfiguration.newlines(), lines);
+                            return GlobalTranslator.render(result, Locale.getDefault());
                         }))
                 .thenCompose(v -> v);
     }
