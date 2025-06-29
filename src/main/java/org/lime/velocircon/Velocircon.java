@@ -33,7 +33,7 @@ public class Velocircon {
         this.logger = logger;
         this.dataFolder = dataFolder;
 
-        this.rconService = new RconService(proxy, ConfigLoader.create(dataFolder, "rcon", RconConfig.DEFAULT), logger);
+        this.rconService = new RconService(this, proxy, ConfigLoader.create(dataFolder, "rcon", RconConfig.DEFAULT), logger);
     }
 
     @Subscribe

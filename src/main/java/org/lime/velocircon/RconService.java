@@ -15,11 +15,15 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class RconService
         implements RconServer {
+    private static final long FLUSH_MILLISECONDS = 200L;
+
+    private final Object plugin;
     private final ProxyServer server;
     private final ConfigLoader<RconConfig> configLoader;
     private final RconBinder binder;
@@ -28,7 +32,8 @@ public class RconService
 
     private String password;
 
-    public RconService(ProxyServer server, ConfigLoader<RconConfig> configLoader, Logger logger) {
+    public RconService(Object plugin, ProxyServer server, ConfigLoader<RconConfig> configLoader, Logger logger) {
+        this.plugin = plugin;
         this.server = server;
         this.configLoader = configLoader;
         this.logger = logger;
@@ -79,16 +84,20 @@ public class RconService
     }
     @Override
     public CompletableFuture<Component> execute(String command) {
-        RconCommandSource source = new RconCommandSource();
-        return server.getCommandManager()
+        RconCommandSource source = new RconCommandSource(this.plugin, this.server.getScheduler(), FLUSH_MILLISECONDS);
+        return this.server
+                .getCommandManager()
                 .executeAsync(source, command)
-                .handleAsync((state, ex) -> {
-                    Iterable<Component> lines = source.pollAll();
-                    if (ex != null)
-                        lines = Iterables.concat(lines, Collections.singleton(Component.text("Internal server error").color(NamedTextColor.RED)));
-                    else if (!state)
-                        lines = Iterables.concat(Collections.singleton(Component.text("No such command").color(NamedTextColor.RED)), lines);
-                    return Component.join(JoinConfiguration.newlines(), lines);
-                });
+                .handleAsync((state, ex) -> source
+                        .outputAsync()
+                        .handleAsync((output, exx) -> {
+                            Iterable<Component> lines = Objects.requireNonNullElseGet(output, Collections::emptyList);
+                            if (ex != null)
+                                lines = Iterables.concat(lines, Collections.singleton(Component.text("Internal server error").color(NamedTextColor.RED)));
+                            else if (!state)
+                                lines = Iterables.concat(Collections.singleton(Component.text("No such command").color(NamedTextColor.RED)), lines);
+                            return Component.join(JoinConfiguration.newlines(), lines);
+                        }))
+                .thenCompose(v -> v);
     }
 }
