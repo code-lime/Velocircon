@@ -21,8 +21,6 @@ import java.nio.file.Path;
         authors = "Lime"
 )
 public class Velocircon {
-    public static Velocircon instance;
-
     public final ProxyServer proxy;
     public final Logger logger;
     public final Path dataFolder;
@@ -31,8 +29,6 @@ public class Velocircon {
 
     @Inject
     public Velocircon(ProxyServer proxy, Logger logger, @DataDirectory Path dataFolder) throws IOException {
-        Velocircon.instance = this;
-
         this.proxy = proxy;
         this.logger = logger;
         this.dataFolder = dataFolder;
@@ -42,7 +38,7 @@ public class Velocircon {
 
     @Subscribe
     public EventTask onInitialize(ProxyInitializeEvent event) throws IOException {
-        Commands.register();
+        Commands.register(this, this.proxy, this.rconService);
         return EventTask.resumeWhenComplete(this.rconService.enable());
     }
     @Subscribe
