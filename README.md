@@ -1,6 +1,7 @@
 [![GitHub Releases](https://img.shields.io/github/v/release/code-lime/Velocircon?style=for-the-badge)](https://github.com/code-lime/Velocircon/releases)
 [![GitHub Downloads](https://img.shields.io/github/downloads/code-lime/Velocircon/total?style=for-the-badge&label=GitHub)](https://github.com/code-lime/Velocircon/releases)
 [![Modrinth](https://img.shields.io/modrinth/dt/KkmSfl3v?style=for-the-badge&color=5da545&label=modrinth)](https://modrinth.com/plugin/velocircon)
+[![Hangar](https://img.shields.io/hangar/dt/velocircon?style=for-the-badge&color=2f4476&label=Hangar)](https://hangar.papermc.io/code-lime/velocircon/versions)
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/code-lime/Velocircon/deploy.yml?branch=master&style=for-the-badge)](https://github.com/code-lime/Velocircon/actions)
 
 # Velocircon
