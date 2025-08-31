@@ -27,7 +27,7 @@ Velocircon enables administrators and automation systems to connect to Velocity 
 
 ## Configuration
 
-After the first launch, the plugin will generate a configuration file `config.yml` in the `plugins/velocircon` directory.  
+After the first launch, the plugin will generate a configuration file `rcon.yml` in the `plugins/velocircon` directory.  
 **You must set a password and enable RCON (`enable: true`), otherwise the plugin will not work!**
 
 Default configuration:
