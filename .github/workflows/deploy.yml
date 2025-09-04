@@ -111,7 +111,7 @@ jobs:
           channel: 'Release'
           description: 'Release'
           api_token: ${{ secrets.HANGAR_TOKEN }}
-          files: '{"path":"./**/*.jar","platforms":["VELOCITY"]}'
+          files: '[{"path":"./**/*.jar","platforms":["VELOCITY"]}]'
       - name: GitHub Release
         if: false
         uses: softprops/action-gh-release@v2
