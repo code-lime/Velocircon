@@ -95,6 +95,7 @@ jobs:
           echo "files=$FILES" >> $GITHUB_OUTPUT
       - name: Modrinth Release
         uses: cloudnode-pro/modrinth-publish@v2
+        if: false
         with:
           project: ${{ vars.MODRINTH_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
@@ -112,6 +113,7 @@ jobs:
           api_token: ${{ secrets.HANGAR_TOKEN }}
           files: '{"path":"./**/*.jar","platforms":["VELOCITY"]}'
       - name: GitHub Release
+        if: false
         uses: softprops/action-gh-release@v2
         with:
           files: |
