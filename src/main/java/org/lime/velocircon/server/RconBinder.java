@@ -33,7 +33,7 @@ public class RconBinder implements Closeable {
 
         ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(bossGroup, workerGroup)
-                .channelFactory(transportType.serverSocketChannelFactory)
+                .channelFactory(transportType.serverSocketChannelFactory())
                 .childOption(ChannelOption.TCP_NODELAY, true)
                 .childOption(ChannelOption.SO_KEEPALIVE, true)
                 .childHandler(new ChannelInitializer<Channel>() {

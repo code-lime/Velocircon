@@ -48,12 +48,6 @@ configurations {
 //<editor-fold desc="Settings: Libraries: Netty (All)">
 dependencies {
     implementation "io.netty:netty-codec:${versionNetty}"
-    implementation "io.netty:netty-codec-haproxy:${versionNetty}"
-    implementation "io.netty:netty-codec-http:${versionNetty}"
-    implementation "io.netty:netty-handler:${versionNetty}"
-    implementation "io.netty:netty-transport-native-epoll:${versionNetty}"
-    implementation "io.netty:netty-transport-native-kqueue:${versionNetty}"
-    implementation "io.netty:netty-transport-native-io_uring:${versionNetty}"
 }
 //</editor-fold>
 //<editor-fold desc="Settings: Libraries: Adventure (Facet)">
