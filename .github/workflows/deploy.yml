@@ -113,7 +113,7 @@ jobs:
           channel: 'Release'
           description: 'Release'
           api_token: ${{ secrets.HANGAR_TOKEN }}
-          platform_dependencies: '{"VELOCITY":[">=3.4.0"]}'
+          platform_dependencies: '{"VELOCITY":["${{ vars.HANGAR_VELOCITY_VERSION }}"]}'
           files: '[{"path":"./**/*.jar","platforms":["VELOCITY"]}]'
       - name: GitHub Release
         if: false
