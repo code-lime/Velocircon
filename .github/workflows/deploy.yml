@@ -105,8 +105,6 @@ jobs:
           files: ${{ steps.jars.outputs.files }}
       - name: Hangar Release
         uses: milkdrinkers/Hangar-Publish@v1
-        env:
-          ACTIONS_STEP_DEBUG: true
         with:
           slug: ${{ vars.HANGAR_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
