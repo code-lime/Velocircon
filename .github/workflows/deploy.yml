@@ -51,8 +51,18 @@ jobs:
             awk "/^## $VERSION/,/^## / {if(/^## / && !/^## $VERSION/) exit; if(!/^## $VERSION/) print}" CHANGELOG.md > changelog.md
             sed -i '1d' changelog.md
             sed -i '/^$/N;/^\n$/d' changelog.md
-            echo "CHANGELOG=changelog.md" >> $GITHUB_OUTPUT
-            echo "✅ Extracted changelog for version $VERSION"
+            
+            if [ -s "changelog.md" ]; then
+              echo "CHANGELOG=changelog.md" >> $GITHUB_OUTPUT
+              echo "✅ Extracted changelog for version $VERSION"
+              echo "Changelog content:"
+              cat changelog.md
+            else
+              echo "❌ Changelog for version $VERSION is empty"
+              echo "Debug: Raw extraction:"
+              awk "/^## $VERSION/,/^## / {if(/^## / && !/^## $VERSION/) exit; if(!/^## $VERSION/) print}" CHANGELOG.md
+              exit 1
+            fi
           else
             echo "❌ Section with version $VERSION not found in CHANGELOG.md"
             echo "Available versions:"
