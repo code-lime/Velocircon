@@ -33,7 +33,7 @@ jobs:
         run: |
           CHANGELOG_OUT=changelog.md
 
-          CHANGELOG=$(git for-each-ref refs/tags/$GITHUB_REF_NAME --format='%(contents)')
+          CHANGELOG=$(git tag -l --format='%(contents)' $GITHUB_REF_NAME)
           if [ -z "$CHANGELOG" ]; then
             echo "❌ Tag $GITHUB_REF_NAME has no message!"
             exit 1
