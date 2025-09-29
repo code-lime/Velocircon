@@ -43,6 +43,9 @@ jobs:
           echo "$CHANGELOG" > "$CHANGELOG_OUT"
           echo "CHANGELOG=$CHANGELOG_OUT" >> $GITHUB_OUTPUT
 
+          git tag -l --format='%(refname:short) %(objecttype) %(objectname) %(contents)'
+          exit 1
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
