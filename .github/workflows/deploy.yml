@@ -32,6 +32,8 @@ jobs:
         id: changelog
         if: github.ref_type == 'tag'
         run: |
+          CHANGELOG_OUT=CHANGELOG_TAG.md
+
           if [ ! -f "CHANGELOG.md" ]; then
             echo "❌ CHANGELOG.md not found!"
             exit 1
@@ -48,19 +50,24 @@ jobs:
           echo "Looking for version: $VERSION"
           
           if grep -q "^## $VERSION" CHANGELOG.md; then
-            awk "/^## $VERSION/,/^## / {if(/^## / && !/^## $VERSION/) exit; if(!/^## $VERSION/) print}" CHANGELOG.md > changelog.md
-            sed -i '1d' changelog.md
-            sed -i '/^$/N;/^\n$/d' changelog.md
+            # Extract content from version section using sed
+            sed -n "/^## $VERSION$/,/^## /p" CHANGELOG.md > "$CHANGELOG_OUT"
+            # Remove the version header line
+            sed -i "/^## $VERSION$/d" "$CHANGELOG_OUT"
+            # Remove the last line if it's another version header
+            sed -i '$d' "$CHANGELOG_OUT"
+            # Remove empty lines at beginning and end
+            sed -i '/^$/N;/^\n$/d' "$CHANGELOG_OUT"
             
-            if [ -s "changelog.md" ]; then
-              echo "CHANGELOG=changelog.md" >> $GITHUB_OUTPUT
+            if [ -s "$CHANGELOG_OUT" ]; then
+              echo "CHANGELOG=$CHANGELOG_OUT" >> $GITHUB_OUTPUT
               echo "✅ Extracted changelog for version $VERSION"
               echo "Changelog content:"
-              cat changelog.md
+              cat "$CHANGELOG_OUT"
             else
               echo "❌ Changelog for version $VERSION is empty"
               echo "Debug: Raw extraction:"
-              awk "/^## $VERSION/,/^## / {if(/^## / && !/^## $VERSION/) exit; if(!/^## $VERSION/) print}" CHANGELOG.md
+              sed -n "/^## $VERSION$/,/^## /p" CHANGELOG.md
               exit 1
             fi
           else
@@ -134,8 +141,9 @@ jobs:
       - name: Read changelog
         id: changelog
         run: |
-          if [ -f "changelog.md" ]; then
-            CHANGELOG_CONTENT=$(cat changelog.md)
+          CHANGELOG_OUT=CHANGELOG_TAG.md
+          if [ -f "$CHANGELOG_OUT" ]; then
+            CHANGELOG_CONTENT=$(cat "$CHANGELOG_OUT")
             echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
             echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
