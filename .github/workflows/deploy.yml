@@ -76,6 +76,17 @@ jobs:
     needs: build
     if: github.ref_type == 'tag'
     steps:
+      - name: Read changelog from tag message
+        id: changelog
+        run: |
+          TAG_MSG=$(git for-each-ref refs/tags/$GITHUB_REF_NAME --format='%(contents)')
+          if [ -z "$TAG_MSG" ]; then
+            echo "❌ Tag $GITHUB_REF_NAME has no message!"
+            exit 1
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAG_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       - name: Download archive's from artifact
         uses: actions/download-artifact@v4
         with:
@@ -99,6 +110,7 @@ jobs:
         with:
           project: ${{ vars.MODRINTH_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
+          changelog: ${{ steps.changelog.outputs.CHANGELOG }}
           loaders: 'velocity'
           game-versions: '["1.8.x","1.9.x","1.10.x","1.11.x","1.12.x","1.13.x","1.14.x","1.15.x","1.16.x","1.17.x","1.18.x","1.19.x","1.20.x","1.21.x"]'
           token: ${{ secrets.MODRINTH_TOKEN }}
@@ -109,7 +121,7 @@ jobs:
           slug: ${{ vars.HANGAR_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
           channel: 'Release'
-          description: 'Release'
+          description: ${{ steps.changelog.outputs.CHANGELOG }}
           api_token: ${{ secrets.HANGAR_TOKEN }}
           platform_dependencies: '{"VELOCITY":["${{ vars.HANGAR_VELOCITY_VERSION }}"]}'
           files: '[{"path":"./**/*.jar","platforms":["VELOCITY"]}]'
@@ -117,5 +129,6 @@ jobs:
         if: false
         uses: softprops/action-gh-release@v2
         with:
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
           files: |
             ./**/*.jar
