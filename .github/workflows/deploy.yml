@@ -38,6 +38,7 @@ jobs:
             echo "❌ Tag $GITHUB_REF_NAME has no message!"
             exit 1
           fi
+          echo "Changelog: '$CHANGELOG'"
           echo "$CHANGELOG" > "$CHANGELOG_OUT"
           echo "CHANGELOG=$CHANGELOG_OUT" >> $GITHUB_OUTPUT
 
