@@ -31,7 +31,7 @@ jobs:
         id: changelog
         if: github.ref_type == 'tag'
         run: |
-          CHANGELOG_OUT=build/changelog.md
+          CHANGELOG_OUT=changelog.md
 
           CHANGELOG=$(git for-each-ref refs/tags/$GITHUB_REF_NAME --format='%(contents)')
           if [ -z "$CHANGELOG" ]; then
