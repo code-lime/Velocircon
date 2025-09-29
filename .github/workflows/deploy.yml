@@ -28,23 +28,37 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Read changelog from tag message
+      - name: Read CHANGELOG.md
         id: changelog
         if: github.ref_type == 'tag'
         run: |
-          CHANGELOG_OUT=changelog.md
-
-          CHANGELOG=$(git tag -l --format='%(contents)' $GITHUB_REF_NAME)
-          if [ -z "$CHANGELOG" ]; then
-            echo "❌ Tag $GITHUB_REF_NAME has no message!"
+          if [ ! -f "CHANGELOG.md" ]; then
+            echo "❌ CHANGELOG.md not found!"
             exit 1
           fi
-          echo "Changelog: '$CHANGELOG'"
-          echo "$CHANGELOG" > "$CHANGELOG_OUT"
-          echo "CHANGELOG=$CHANGELOG_OUT" >> $GITHUB_OUTPUT
-
-          git tag -l --format='%(refname:short) %(objecttype) %(objectname) %(contents)'
-          exit 1
+          
+          if ! grep -q "^## [0-9]" CHANGELOG.md; then
+            echo "❌ No version sections found in CHANGELOG.md"
+            exit 1
+          fi
+          
+          echo "✅ CHANGELOG.md has correct format"
+          
+          VERSION=$GITHUB_REF_NAME
+          echo "Looking for version: $VERSION"
+          
+          if grep -q "^## $VERSION" CHANGELOG.md; then
+            awk "/^## $VERSION/,/^## / {if(/^## / && !/^## $VERSION/) exit; if(!/^## $VERSION/) print}" CHANGELOG.md > changelog.md
+            sed -i '1d' changelog.md
+            sed -i '/^$/N;/^\n$/d' changelog.md
+            echo "CHANGELOG=changelog.md" >> $GITHUB_OUTPUT
+            echo "✅ Extracted changelog for version $VERSION"
+          else
+            echo "❌ Section with version $VERSION not found in CHANGELOG.md"
+            echo "Available versions:"
+            grep "^## " CHANGELOG.md
+            exit 1
+          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -110,8 +124,8 @@ jobs:
       - name: Read changelog
         id: changelog
         run: |
-          if [ -f "changelog.txt" ]; then
-            CHANGELOG_CONTENT=$(cat changelog.txt)
+          if [ -f "changelog.md" ]; then
+            CHANGELOG_CONTENT=$(cat changelog.md)
             echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
             echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
