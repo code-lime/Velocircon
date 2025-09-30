@@ -169,7 +169,6 @@ jobs:
           echo "files=$FILES" >> $GITHUB_OUTPUT
       - name: Modrinth Release
         uses: cloudnode-pro/modrinth-publish@v2
-        if: false
         with:
           project: ${{ vars.MODRINTH_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
@@ -189,7 +188,6 @@ jobs:
           platform_dependencies: '{"VELOCITY":["${{ vars.HANGAR_VELOCITY_VERSION }}"]}'
           files: '[{"path":"./**/*.jar","platforms":["VELOCITY"]}]'
       - name: GitHub Release
-        if: false
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.changelog.outputs.CHANGELOG }}

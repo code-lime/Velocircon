@@ -2,8 +2,9 @@
 
 ## 1.0.3
 
-Testing
+- Support any velocity 3.4 builds
+  - Use native `TransportType` by reflection access
 
 ## 1.0.0
 
-Initialize
+Release
