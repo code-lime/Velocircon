@@ -49,7 +49,9 @@ jobs:
         id: set-matrix
         run: |
           PROCESSED=$(cat .last_builds)
-          NEW_IDS=$(jq -r '.[].id' builds.json | grep -v -F "$PROCESSED" || true)
+          NEW_IDS=$(jq -r --arg processed "$PROCESSED" '
+            [ .[].id | select($processed | contains(tostring) | not) ] | .[]
+          ' builds.json)
           
           if [ -z "$NEW_IDS" ]; then
             echo "matrix={}" >> $GITHUB_OUTPUT
