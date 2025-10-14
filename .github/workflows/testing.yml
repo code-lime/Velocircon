@@ -3,9 +3,9 @@ name: Velocity New Builds
 on:
   push:
     tags: [ "*" ]
-    branches: [ "master" ]
+    branches: [ "test" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "test" ]
 #  schedule:
 #    - cron: "0 * * * *"
 
