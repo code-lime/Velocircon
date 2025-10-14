@@ -70,6 +70,8 @@ jobs:
 
       - name: Get latest release
         id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           LATEST=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
           echo "latest_release=$LATEST" >> $GITHUB_OUTPUT
