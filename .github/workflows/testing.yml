@@ -1,0 +1,97 @@
+name: Velocity New Builds
+
+on:
+  push:
+    tags: [ "*" ]
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+#  schedule:
+#    - cron: "0 * * * *"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch new builds
+        id: fetch
+        run: |
+          curl -s https://fill.PAPERMC.io/v3/projects/velocity/versions/${{ vars.PAPERMC_VELOCITY_VERSION }}/builds | jq '.' > builds.json
+
+      - name: Restore last processed builds
+        run: |
+          git fetch origin build-state || true
+          if git show-ref --verify --quiet refs/remotes/origin/build-state; then
+            git checkout build-state
+          else
+            git checkout -b build-state
+            git push -u origin build-state
+          fi
+      
+          if [ -f ".last_builds" ]; then
+            echo "Found previous .last_builds"
+          else
+            echo "No previous .last_builds, creating empty file"
+            touch .last_builds
+          fi
+
+      - name: Determine new builds
+        id: set-matrix
+        run: |
+          PROCESSED=$(cat .last_builds)
+          NEW_IDS=$(jq -r '.[].id' builds.json | grep -v -F "$PROCESSED" || true)
+          
+          if [ -z "$NEW_IDS" ]; then
+            echo "matrix={}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          MATRIX=$(jq -n --arg ids "$NEW_IDS" '{"ids": ($ids | split("\n"))}')
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+          echo "$NEW_IDS" >> .last_builds
+          
+          echo "Matrix: $MATRIX"
+          echo "New ids: $NEW_IDS"
+
+          git add .last_builds
+          git commit -m "Update last processed builds" || echo "No changes"
+          git push origin build-state || echo "Push failed"
+
+      - name: Get latest release
+        id: release
+        run: |
+          LATEST=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          echo "latest_release=$LATEST" >> $GITHUB_OUTPUT
+          
+          echo "Latest: $LATEST"
+
+#  process-build:
+#    needs: prepare
+#    runs-on: ubuntu-latest
+#    if: ${{ fromJSON(needs.prepare.outputs.build_matrix).include != '' }}
+#    strategy:
+#      matrix: ${{ fromJSON(needs.prepare.outputs.matrix).ids }}
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v4
+#
+#      - name: Save build file
+#        run: |
+#          echo "Saving build ${{ matrix }} to file"
+#          jq ".[] | select(.id == ${{ matrix }})" builds.json > build-${{ matrix }}.json
+#
+#      - name: Use latest release
+#        run: |
+#          echo "Latest release: ${{ needs.prepare.outputs.release_release }}"
+#      
+#      - name: Process build
+#        run: |
+#          echo "Processing build file build-${{ matrix }}.json"
+#          cat build-${{ matrix }}.json
+#          # Здесь можно скачать JAR, проверить SHA256 и т.д.
