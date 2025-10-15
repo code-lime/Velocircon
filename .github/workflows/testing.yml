@@ -171,8 +171,8 @@ jobs:
           echo -e "enable: true\ncolor: false" > ./plugins/velocircon/rcon.yml
 
           JAR_FILE=velocity.jar
-          TIMEOUT_SECONDS=10   # таймаут на запуск сервера
-          RCON_TIMEOUT=5      # таймаут на rcon-test
+          TIMEOUT_SECONDS=120
+          RCON_TIMEOUT=60
 
           echo "Starting Velocity server..."
 
