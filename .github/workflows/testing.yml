@@ -18,27 +18,27 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Checkout build-state branch (or create if missing)
+      - name: Checkout build-state branch (if exists)
         id: checkout-state
         uses: actions/checkout@v4
         with:
           ref: build-state
           fetch-depth: 0
-          persist-credentials: true
         continue-on-error: true
-        
-      - name: Ensure build-state branch exists
-        if: steps.checkout-state.outcome == 'failure'
-        run: |
-          set -euo pipefail
-          echo "build-state branch not found — creating it"
-          git checkout -b build-state
 
-          if ! git push -u origin build-state; then
-            echo "::error::Failed to create or push build-state branch. Check permissions or token."
-            exit 1
-          fi
-          echo "Successfully created and pushed build-state branch."
+      - name: Create build-state branch if missing
+        if: steps.checkout-state.outcome == 'failure'
+        uses: peterjgrainger/action-create-branch@v2.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: 'build-state'
+
+      - name: Checkout build-state branch (confirmed)
+        uses: actions/checkout@v4
+        with:
+          ref: build-state
+          fetch-depth: 0
 
       - name: Fetch new builds
         id: fetch
@@ -55,6 +55,7 @@ jobs:
             exit 1
           fi
           echo "Builds successfully fetched."
+
       - name: Determine new builds
         id: set-matrix
         run: |
@@ -66,20 +67,14 @@ jobs:
           fi
 
           echo "Extracting build IDs..."
-          if ! jq -r '.[].id' builds.json > all_ids.txt; then
-            echo "::error::Failed to parse builds.json with jq."
-            exit 1
-          fi
+          jq -r '.[].id' builds.json > all_ids.txt
           sort -u all_ids.txt -o all_ids.txt
 
           touch .last_builds
           sort -u .last_builds -o .last_builds
 
           NEW_IDS_FILE=new_ids.txt
-          if ! comm -23 all_ids.txt .last_builds > "$NEW_IDS_FILE"; then
-            echo "::error::Failed to compare build lists."
-            exit 1
-          fi
+          comm -23 all_ids.txt .last_builds > "$NEW_IDS_FILE"
 
           if [ ! -s "$NEW_IDS_FILE" ]; then
             echo "No new builds found."
@@ -90,39 +85,35 @@ jobs:
           echo "New builds detected:"
           cat "$NEW_IDS_FILE"
 
-          JSON=$(jq -R -s -c 'split("\n") | map(select(length>0))' < "$NEW_IDS_FILE") || {
-            echo "::error::Failed to generate matrix JSON."
-            exit 1
-          }
+          JSON=$(jq -R -s -c 'split("\n") | map(select(length>0))' < "$NEW_IDS_FILE")
           echo "matrix=$JSON" >> "$GITHUB_OUTPUT"
 
           cat "$NEW_IDS_FILE" >> .last_builds
           sort -u .last_builds -o .last_builds
 
-          git add .last_builds
-
-          if git diff --cached --quiet; then
-            echo "No changes in .last_builds, skipping commit."
-          else
-            git commit -m "Update last processed builds"
-            echo "Committing updated .last_builds..."
-          fi
-
-          if ! git push -u origin HEAD:build-state --force; then
-            echo "::error::Failed to push updated .last_builds to build-state branch."
-            exit 1
-          fi
-
-          echo "Successfully updated build-state branch."
+      - name: Commit updated .last_builds
+        if: steps.set-matrix.outputs.matrix != '[]'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update last processed builds"
+          branch: build-state
+          file_pattern: .last_builds
+          #commit_user_name: github-actions[bot]
+          #commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          push_options: --force
 
       - name: Get latest release
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           LATEST=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          if [ -z "$LATEST" ]; then
+            echo "::error::No releases found in repository."
+            exit 1
+          fi
           echo "latest_release=$LATEST" >> $GITHUB_OUTPUT
-          
           echo "Latest: $LATEST"
 
 #  process-build:
