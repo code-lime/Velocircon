@@ -64,20 +64,18 @@ jobs:
         id: set-matrix
         run: |
           set -euo pipefail
-      
+
           if [ ! -f builds.json ]; then
             echo "::error::Missing builds.json file. Previous step may have failed."
             exit 1
           fi
-      
+
           echo "Extracting build IDs and download URLs..."
-          # Получаем все id и url в формате JSON-объекта на строку
           jq -c '.[] | {id: .id, url: .downloads["server:default"].url}' builds.json > all_builds.txt
-      
+
           touch .last_builds
           sort -u .last_builds -o .last_builds || true
-      
-          # Вычитаем уже обработанные id
+
           NEW_BUILDS_FILE=new_builds.txt
           > "$NEW_BUILDS_FILE"
           while read line; do
@@ -86,21 +84,19 @@ jobs:
               echo "$line" >> "$NEW_BUILDS_FILE"
             fi
           done < all_builds.txt
-      
+
           if [ ! -s "$NEW_BUILDS_FILE" ]; then
             echo "No new builds found."
             echo "matrix=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-      
+
           echo "New builds detected:"
           cat "$NEW_BUILDS_FILE"
-      
-          # Собираем JSON-массив объектов для matrix
+
           MATRIX_JSON=$(jq -c -s '.' "$NEW_BUILDS_FILE")
           echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
-      
-          # Добавляем новые id в .last_builds
+
           while read line; do
             echo "$line" | jq -r '.id' >> .last_builds
           done < "$NEW_BUILDS_FILE"
@@ -123,9 +119,8 @@ jobs:
           LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
           echo "Latest release: $LATEST_TAG"
 
-          # Скачиваем файл по паттерну velocity-*.jar
           gh release download "$LATEST_TAG" --pattern "*.jar" -D ./release/
-          
+
           echo "latest_release=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Upload release file as artifact
@@ -173,7 +168,7 @@ jobs:
           set -euo pipefail
 
           echo 'eula=true' > ./eula.txt
-          
+
           mkdir -p ./plugins/bStats
           echo 'enabled=false' > ./plugins/bStats/config.txt
 
@@ -183,17 +178,15 @@ jobs:
           JAR_FILE=velocity.jar
           TIMEOUT_SECONDS=10   # таймаут на запуск сервера
           RCON_TIMEOUT=5      # таймаут на rcon-test
-          
+
           echo "Starting Velocity server..."
-          
-          # Запускаем сервер в фоне, выводим в server.log
+
           java -Xms100M -jar ./velocity.jar > server.log 2>&1 &
           SERVER_PID=$!
-          
-          # Параллельно выводим логи в stdout
+
           tail -f server.log &
           TAIL_PID=$!
-          
+
           echo "Waiting for server to be ready..."
           START_TIME=$(date +%s)
           while true; do
@@ -201,13 +194,13 @@ jobs:
               echo "Server ready!"
               break
             fi
-        
+
             if ! kill -0 $SERVER_PID 2>/dev/null; then
               echo "::error::Server process terminated unexpectedly"
               cat server.log
               exit 1
             fi
-        
+
             NOW=$(date +%s)
             ELAPSED=$((NOW - START_TIME))
             if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
@@ -216,7 +209,7 @@ jobs:
               cat server.log
               exit 1
             fi
-        
+
             sleep 1
           done
 
@@ -225,7 +218,6 @@ jobs:
           FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
           FIRST_LINE=$(echo "$FIRST_LINE" | sed -r 's/\x1B\[[0-9;]*[mK]//g' | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
-          # Ожидаем, что первая строка начинается с версии и git-
           VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
           BUILD="${{ matrix.id }}"
           if echo "$FIRST_LINE" | grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
@@ -237,12 +229,12 @@ jobs:
               exit 1
           fi
           set -e
-          
+
           echo "Stopping server..."
           kill $SERVER_PID || true
           wait $SERVER_PID 2>/dev/null || true
           kill $TAIL_PID || true
-          
+
           exit 0
 
       - name: Create Markdown report
