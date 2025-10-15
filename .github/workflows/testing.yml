@@ -159,7 +159,7 @@ jobs:
           mkdir -p ./tools
           curl -fsSL "$RCON_URL" -o ./tools/rcon.tar.gz
           tar -xzf ./tools/rcon.tar.gz -C ./tools
-          chmod +x ./tools/rcon
+          chmod +x ./tools/rcon-cli
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -221,7 +221,7 @@ jobs:
           
           echo "Running rcon-test..."
           set +e
-          FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
+          FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
           
           # Ожидаем, что первая строка начинается с версии и git-
           VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
@@ -272,5 +272,7 @@ jobs:
       - name: Create issue on failure
         if: failure()
         uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           filename: failure-report.md
