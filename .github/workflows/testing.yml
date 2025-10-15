@@ -30,7 +30,6 @@ jobs:
         if: steps.checkout-state.outcome == 'failure'
         run: |
           git switch --orphan build-state
-          git rm -rf .
           git commit --allow-empty -m "Initialize empty branch"
           git push -u origin build-state
 
