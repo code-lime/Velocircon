@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      latest_release: ${{ steps.download-release.outputs.latest_release }}
     steps:
       - name: Checkout build-state branch (if exists)
         id: checkout-state
@@ -114,6 +115,7 @@ jobs:
           push_options: --force
 
       - name: Download release file
+        id: download-release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -122,6 +124,8 @@ jobs:
 
           # Скачиваем файл по паттерну velocity-*.jar
           gh release download "$LATEST_TAG" --pattern "*.jar" -D ./release/
+          
+          echo "latest_release=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Upload release file as artifact
         uses: actions/upload-artifact@v4
@@ -156,7 +160,7 @@ jobs:
           curl -fsSL "$RCON_URL" -o ./tools/rcon.tar.gz
           tar -xzf ./tools/rcon.tar.gz -C ./tools
           chmod +x ./tools/rcon
-          
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -238,4 +242,35 @@ jobs:
           kill $TAIL_PID || true
           
           exit 0
-          
+
+      - name: Create Markdown report
+        if: failure()
+        run: |
+          REPORT_FILE="failure-report.md"
+
+          echo "Creating Markdown report: $REPORT_FILE"
+
+          cat <<EOF > "$REPORT_FILE"
+          ---
+          title: Velocircon ${{ needs.prepare.outputs.latest_release }} test failure for velocity ${{ vars.PAPERMC_VELOCITY_VERSION }}#${{ matrix.id }} 
+          assignees: code-lime
+          labels: bug
+          ---
+          # Test failure report
+
+          **Velocity Build ID:** ${{ matrix.id }}
+          **Velocity Version:** ${{ vars.PAPERMC_VELOCITY_VERSION }}
+          **Velocity Build URL:** [Download Link](${{ matrix.url }})
+          **Velocircon Release:** ${{ needs.prepare.outputs.latest_release }}
+
+          The automated test for this Velocity build failed.
+          Please check the server and RCON logs for details.
+
+          EOF
+          echo "Report file created at $REPORT_FILE"
+
+      - name: Create issue on failure
+        if: failure()
+        uses: JasonEtco/create-an-issue@v2
+        with:
+          filename: failure-report.md
