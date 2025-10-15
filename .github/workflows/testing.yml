@@ -219,15 +219,16 @@ jobs:
         
             sleep 1
           done
-          
+
           echo "Running rcon-test..."
           set +e
           FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
-          
+          FIRST_LINE=$(echo "$FIRST_LINE" | sed -r 's/\x1B\[[0-9;]*[mK]//g' | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+
           # Ожидаем, что первая строка начинается с версии и git-
           VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
           BUILD="${{ matrix.id }}"
-          if [[ "$FIRST_LINE" =~ ^Velocity\ $VERSION\ \(git-[0-9a-fA-F]+-b$BUILD\)$ ]]; then
+          if grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
               echo "RCON test succeeded! First line matches pattern."
           else
               echo "::error::RCON test failed. First line does not match expected pattern."
