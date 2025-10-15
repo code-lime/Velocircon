@@ -148,6 +148,15 @@ jobs:
           echo "Downloading build #${{ matrix.id }} with JAR from ${{ matrix.url }}"
           curl -fsSL "${{ matrix.url }}" -o ./velocity.jar
 
+      - name: Download rcon-cli
+        run: |
+          set -euo pipefail
+          RCON_URL="https://github.com/itzg/rcon-cli/releases/download/1.7.0/rcon-cli_1.7.0_linux_amd64.tar.gz"
+          mkdir -p ./tools
+          curl -fsSL "$RCON_URL" -o ./tools/rcon.tar.gz
+          tar -xzf ./tools/rcon.tar.gz -C ./tools
+          chmod +x ./tools/rcon
+          
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
@@ -156,5 +165,77 @@ jobs:
 
       - name: Launch velocity
         run: |
-          echo 'eula=true' > eula.txt
-          java -jar ./velocity.jar
+          set -euo pipefail
+
+          echo 'eula=true' > ./eula.txt
+          
+          mkdir -p ./plugins/bStats
+          echo 'enabled=false' > ./plugins/bStats/config.txt
+
+          mkdir -p ./plugins/velocircon
+          echo 'enable: true' > ./plugins/velocircon/rcon.yml
+
+          JAR_FILE=velocity.jar
+          TIMEOUT_SECONDS=10   # таймаут на запуск сервера
+          RCON_TIMEOUT=5      # таймаут на rcon-test
+          
+          echo "Starting Velocity server..."
+          
+          # Запускаем сервер в фоне, выводим в server.log
+          java -Xms100M -jar ./velocity.jar > server.log 2>&1 &
+          SERVER_PID=$!
+          
+          # Параллельно выводим логи в stdout
+          tail -f server.log &
+          TAIL_PID=$!
+          
+          echo "Waiting for server to be ready..."
+          START_TIME=$(date +%s)
+          while true; do
+            if grep -q "\[.*INFO\]: Done" server.log; then
+              echo "Server ready!"
+              break
+            fi
+        
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "::error::Server process terminated unexpectedly"
+              cat server.log
+              exit 1
+            fi
+        
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START_TIME))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "::error::Server startup timeout after $TIMEOUT_SECONDS seconds"
+              kill $SERVER_PID || true
+              cat server.log
+              exit 1
+            fi
+        
+            sleep 1
+          done
+          
+          echo "Running rcon-test..."
+          set +e
+          FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
+          
+          # Ожидаем, что первая строка начинается с версии и git-
+          VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
+          BUILD="${{ matrix.id }}"
+          if [[ "$FIRST_LINE" =~ ^Velocity\ $VERSION\ \(git-[0-9a-fA-F]+-b$BUILD\)$ ]]; then
+              echo "RCON test succeeded! First line matches pattern."
+          else
+              echo "::error::RCON test failed. First line does not match expected pattern."
+              echo "Expected pattern: Velocity $VERSION (git-<hash>-b$BUILD)"
+              echo "Actual: $FIRST_LINE"
+              exit 1
+          fi
+          set -e
+          
+          echo "Stopping server..."
+          kill $SERVER_PID || true
+          wait $SERVER_PID 2>/dev/null || true
+          kill $TAIL_PID || true
+          
+          exit 0
+          
