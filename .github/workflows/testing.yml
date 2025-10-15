@@ -228,7 +228,7 @@ jobs:
           # Ожидаем, что первая строка начинается с версии и git-
           VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
           BUILD="${{ matrix.id }}"
-          if grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
+          if echo "$FIRST_LINE" | grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
               echo "RCON test succeeded! First line matches pattern."
           else
               echo "::error::RCON test failed. First line does not match expected pattern."
