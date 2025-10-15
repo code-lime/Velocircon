@@ -178,7 +178,7 @@ jobs:
           echo 'enabled=false' > ./plugins/bStats/config.txt
 
           mkdir -p ./plugins/velocircon
-          echo 'enable: true' > ./plugins/velocircon/rcon.yml
+          echo 'enable: true\ncolor: false' > ./plugins/velocircon/rcon.yml
 
           JAR_FILE=velocity.jar
           TIMEOUT_SECONDS=10   # таймаут на запуск сервера
