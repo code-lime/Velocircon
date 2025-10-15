@@ -17,11 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      latest_release: ${{ steps.release.outputs.latest_release }}
     steps:
       - name: Checkout build-state branch (if exists)
         id: checkout-state
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: build-state
           fetch-depth: 0
@@ -39,7 +38,7 @@ jobs:
 
       - name: Checkout build-state branch (confirmed)
         if: steps.checkout-state.outcome == 'failure'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: build-state
           fetch-depth: 0
@@ -122,7 +121,7 @@ jobs:
           curl -fsSL "$URL" -o velocity.jar
 
       - name: Upload release file as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-jar
           path: velocity.jar
@@ -135,7 +134,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Download release artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
         with:
           name: release-jar
           path: ./plugins
@@ -146,7 +145,7 @@ jobs:
           curl -fsSL "${{ matrix.url }}" -o ./velocity.jar
 
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
