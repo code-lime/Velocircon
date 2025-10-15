@@ -3,6 +3,7 @@ name: Velocity New Builds
 on:
   schedule:
     - cron: "30 17 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
