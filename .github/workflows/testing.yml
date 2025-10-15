@@ -118,13 +118,13 @@ jobs:
           echo "Latest release: $LATEST_TAG"
 
           # Скачиваем файл по паттерну velocity-*.jar
-          gh release download "$LATEST_TAG" --pattern "velocity-*.jar" --dir ./release
+          gh release download "$LATEST_TAG" --pattern "*.jar" -D ./release/
 
       - name: Upload release file as artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-jar
-          path: velocity.jar
+          path: ./release/*.jar
 
   process-build:
     needs: prepare
