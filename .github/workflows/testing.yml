@@ -114,11 +114,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Скачиваем последний релиз и выбираем файл по паттерну
-          URL=$(gh release download --pattern "velocity-*.jar" --latest --json assets -q '.assets[0].browserDownloadUrl')
-          
-          echo "Downloading file: $URL"
-          curl -fsSL "$URL" -o velocity.jar
+          LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          echo "Latest release: $LATEST_TAG"
+
+          # Скачиваем файл по паттерну velocity-*.jar
+          gh release download "$LATEST_TAG" --pattern "velocity-*.jar" --dir ./release
 
       - name: Upload release file as artifact
         uses: actions/upload-artifact@v4
