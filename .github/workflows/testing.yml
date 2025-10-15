@@ -31,16 +31,10 @@ jobs:
         if: steps.checkout-state.outcome == 'failure'
         run: |
           git switch --orphan build-state
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit --allow-empty -m "Initialize empty branch"
-
-      - name: Publish build-state branch (if missing)
-        if: steps.checkout-state.outcome == 'failure'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Publish empty branch"
-          branch: build-state
-          create_branch: true
-          commit_options: --allow-empty
+          git push -u origin build-state
 
       - name: Checkout build-state branch (confirmed)
         if: steps.checkout-state.outcome == 'failure'
