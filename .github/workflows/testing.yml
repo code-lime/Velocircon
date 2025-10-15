@@ -18,57 +18,102 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Checkout repository
+      - name: Checkout build-state branch (or create if missing)
+        id: checkout-state
         uses: actions/checkout@v4
         with:
+          ref: build-state
+          fetch-depth: 0
           persist-credentials: true
+        continue-on-error: true
+        
+      - name: Ensure build-state branch exists
+        if: steps.checkout-state.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          echo "build-state branch not found — creating it"
+          git checkout -b build-state
+
+          if ! git push -u origin build-state; then
+            echo "::error::Failed to create or push build-state branch. Check permissions or token."
+            exit 1
+          fi
+          echo "Successfully created and pushed build-state branch."
 
       - name: Fetch new builds
         id: fetch
         run: |
-          curl -s https://fill.PAPERMC.io/v3/projects/velocity/versions/${{ vars.PAPERMC_VELOCITY_VERSION }}/builds | jq '.' > builds.json
-
-      - name: Restore last processed builds
-        run: |
-          git fetch origin build-state || true
-          if git show-ref --verify --quiet refs/remotes/origin/build-state; then
-            git checkout build-state
-          else
-            git checkout -b build-state
-            git push -u origin build-state
+          set -euo pipefail
+          echo "Fetching builds from PaperMC API..."
+          if ! curl -fsSL "https://fill.papermc.io/v3/projects/velocity/versions/${{ vars.PAPERMC_VELOCITY_VERSION }}/builds" -o builds.json; then
+            echo "::error::Failed to fetch builds.json from PaperMC API."
+            exit 1
           fi
-      
-          if [ -f ".last_builds" ]; then
-            echo "Found previous .last_builds"
-          else
-            echo "No previous .last_builds, creating empty file"
-            touch .last_builds
+          if ! jq empty builds.json 2>/dev/null; then
+            echo "::error::Invalid JSON received from API."
+            cat builds.json
+            exit 1
           fi
-
+          echo "Builds successfully fetched."
       - name: Determine new builds
         id: set-matrix
         run: |
-          PROCESSED=$(cat .last_builds)
-          NEW_IDS=$(jq -r --arg processed "$PROCESSED" '
-            [ .[].id | select($processed | contains(tostring) | not) ] | .[]
-          ' builds.json)
-          
-          if [ -z "$NEW_IDS" ]; then
-            echo "matrix={}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          if [ ! -f builds.json ]; then
+            echo "::error::Missing builds.json file. Previous step may have failed."
+            exit 1
+          fi
+
+          echo "Extracting build IDs..."
+          if ! jq -r '.[].id' builds.json > all_ids.txt; then
+            echo "::error::Failed to parse builds.json with jq."
+            exit 1
+          fi
+          sort -u all_ids.txt -o all_ids.txt
+
+          touch .last_builds
+          sort -u .last_builds -o .last_builds
+
+          NEW_IDS_FILE=new_ids.txt
+          if ! comm -23 all_ids.txt .last_builds > "$NEW_IDS_FILE"; then
+            echo "::error::Failed to compare build lists."
+            exit 1
+          fi
+
+          if [ ! -s "$NEW_IDS_FILE" ]; then
+            echo "No new builds found."
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          MATRIX=$(jq -n --arg ids "$NEW_IDS" '{"ids": ($ids | split("\n"))}')
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "New builds detected:"
+          cat "$NEW_IDS_FILE"
 
-          echo "$NEW_IDS" >> .last_builds
-          
-          echo "Matrix: $MATRIX"
-          echo "New ids: $NEW_IDS"
+          JSON=$(jq -R -s -c 'split("\n") | map(select(length>0))' < "$NEW_IDS_FILE") || {
+            echo "::error::Failed to generate matrix JSON."
+            exit 1
+          }
+          echo "matrix=$JSON" >> "$GITHUB_OUTPUT"
+
+          cat "$NEW_IDS_FILE" >> .last_builds
+          sort -u .last_builds -o .last_builds
 
           git add .last_builds
-          git commit -m "Update last processed builds" || echo "No changes"
-          git push origin build-state || echo "Push failed"
+
+          if git diff --cached --quiet; then
+            echo "No changes in .last_builds, skipping commit."
+          else
+            git commit -m "Update last processed builds"
+            echo "Committing updated .last_builds..."
+          fi
+
+          if ! git push -u origin HEAD:build-state --force; then
+            echo "::error::Failed to push updated .last_builds to build-state branch."
+            exit 1
+          fi
+
+          echo "Successfully updated build-state branch."
 
       - name: Get latest release
         id: release
