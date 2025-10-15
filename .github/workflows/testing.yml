@@ -95,7 +95,7 @@ jobs:
           cat "$NEW_BUILDS_FILE"
       
           # Собираем JSON-массив объектов для matrix
-          MATRIX_JSON=$(jq -s '.' "$NEW_BUILDS_FILE")
+          MATRIX_JSON=$(jq -c -s '.' "$NEW_BUILDS_FILE")
           echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
       
           # Добавляем новые id в .last_builds
