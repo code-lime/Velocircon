@@ -134,7 +134,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.prepare.outputs.matrix != '[]' }}
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Download release artifact
         uses: actions/download-artifact@v5
