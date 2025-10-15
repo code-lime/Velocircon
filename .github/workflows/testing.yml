@@ -28,13 +28,17 @@ jobs:
 
       - name: Create build-state branch if missing
         if: steps.checkout-state.outcome == 'failure'
-        uses: peterjgrainger/action-create-branch@v2.2.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          branch: 'build-state'
+        run: |
+          git init
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          
+          git switch --orphan build-state
+          git rm -rf .
+          git commit --allow-empty -m "Initialize empty branch"
+          git push -u origin build-state
 
       - name: Checkout build-state branch (confirmed)
+        if: steps.checkout-state.outcome == 'failure'
         uses: actions/checkout@v4
         with:
           ref: build-state
