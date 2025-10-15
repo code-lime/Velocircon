@@ -1,97 +1,267 @@
 name: Velocity New Builds
 
 on:
-  push:
-    tags: [ "*" ]
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-#  schedule:
-#    - cron: "0 * * * *"
+  schedule:
+    - cron: "30 17 * * *"
+
+permissions:
+  contents: write
+  issues: write
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      latest_release: ${{ steps.download-release.outputs.latest_release }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout build-state branch (if exists)
+        id: checkout-state
+        uses: actions/checkout@v5
+        with:
+          ref: build-state
+          fetch-depth: 0
+          persist-credentials: true
+        continue-on-error: true
+
+      - name: Create build-state branch (if missing)
+        if: steps.checkout-state.outcome == 'failure'
+        run: |
+          git switch --orphan build-state
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "Initialize empty branch"
+          git push -u origin build-state
+
+      - name: Checkout build-state branch (confirmed)
+        if: steps.checkout-state.outcome == 'failure'
+        uses: actions/checkout@v5
+        with:
+          ref: build-state
+          fetch-depth: 0
 
       - name: Fetch new builds
         id: fetch
         run: |
-          curl -s https://fill.PAPERMC.io/v3/projects/velocity/versions/${{ vars.PAPERMC_VELOCITY_VERSION }}/builds | jq '.' > builds.json
-
-      - name: Restore last processed builds
-        run: |
-          git fetch origin build-state || true
-          if git show-ref --verify --quiet refs/remotes/origin/build-state; then
-            git checkout build-state
-          else
-            git checkout -b build-state
-            git push -u origin build-state
+          set -euo pipefail
+          echo "Fetching builds from PaperMC API..."
+          if ! curl -fsSL "https://fill.papermc.io/v3/projects/velocity/versions/${{ vars.PAPERMC_VELOCITY_VERSION }}/builds" -o builds.json; then
+            echo "::error::Failed to fetch builds.json from PaperMC API."
+            exit 1
           fi
-      
-          if [ -f ".last_builds" ]; then
-            echo "Found previous .last_builds"
-          else
-            echo "No previous .last_builds, creating empty file"
-            touch .last_builds
+          if ! jq empty builds.json 2>/dev/null; then
+            echo "::error::Invalid JSON received from API."
+            cat builds.json
+            exit 1
           fi
-
+          echo "Builds successfully fetched."
       - name: Determine new builds
         id: set-matrix
         run: |
-          PROCESSED=$(cat .last_builds)
-          NEW_IDS=$(jq -r '.[].id' builds.json | grep -v -F "$PROCESSED" || true)
-          
-          if [ -z "$NEW_IDS" ]; then
-            echo "matrix={}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          if [ ! -f builds.json ]; then
+            echo "::error::Missing builds.json file. Previous step may have failed."
+            exit 1
+          fi
+
+          echo "Extracting build IDs and download URLs..."
+          jq -c '.[] | {id: .id, url: .downloads["server:default"].url}' builds.json > all_builds.txt
+
+          touch .last_builds
+          sort -u .last_builds -o .last_builds || true
+
+          NEW_BUILDS_FILE=new_builds.txt
+          > "$NEW_BUILDS_FILE"
+          while read line; do
+            ID=$(echo "$line" | jq -r '.id')
+            if ! grep -qx "$ID" .last_builds; then
+              echo "$line" >> "$NEW_BUILDS_FILE"
+            fi
+          done < all_builds.txt
+
+          if [ ! -s "$NEW_BUILDS_FILE" ]; then
+            echo "No new builds found."
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          MATRIX=$(jq -n --arg ids "$NEW_IDS" '{"ids": ($ids | split("\n"))}')
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "New builds detected:"
+          cat "$NEW_BUILDS_FILE"
 
-          echo "$NEW_IDS" >> .last_builds
-          
-          echo "Matrix: $MATRIX"
-          echo "New ids: $NEW_IDS"
+          MATRIX_JSON=$(jq -c -s '.' "$NEW_BUILDS_FILE")
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
 
-          git add .last_builds
-          git commit -m "Update last processed builds" || echo "No changes"
-          git push origin build-state || echo "Push failed"
+          while read line; do
+            echo "$line" | jq -r '.id' >> .last_builds
+          done < "$NEW_BUILDS_FILE"
+          sort -u .last_builds -o .last_builds        
 
-      - name: Get latest release
-        id: release
+      - name: Commit updated .last_builds
+        if: steps.set-matrix.outputs.matrix != '[]'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update last processed builds"
+          branch: build-state
+          file_pattern: .last_builds
+          push_options: --force
+
+      - name: Download release file
+        id: download-release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
-          echo "latest_release=$LATEST" >> $GITHUB_OUTPUT
-          
-          echo "Latest: $LATEST"
+          LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          echo "Latest release: $LATEST_TAG"
 
-#  process-build:
-#    needs: prepare
-#    runs-on: ubuntu-latest
-#    if: ${{ fromJSON(needs.prepare.outputs.build_matrix).include != '' }}
-#    strategy:
-#      matrix: ${{ fromJSON(needs.prepare.outputs.matrix).ids }}
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Save build file
-#        run: |
-#          echo "Saving build ${{ matrix }} to file"
-#          jq ".[] | select(.id == ${{ matrix }})" builds.json > build-${{ matrix }}.json
-#
-#      - name: Use latest release
-#        run: |
-#          echo "Latest release: ${{ needs.prepare.outputs.release_release }}"
-#      
-#      - name: Process build
-#        run: |
-#          echo "Processing build file build-${{ matrix }}.json"
-#          cat build-${{ matrix }}.json
-#          # Здесь можно скачать JAR, проверить SHA256 и т.д.
+          gh release download "$LATEST_TAG" --pattern "*.jar" -D ./release/
+
+          echo "latest_release=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-jar
+          path: ./release/*.jar
+
+  process-build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: ${{ needs.prepare.outputs.matrix != '[]' }}
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: release-jar
+          path: ./plugins
+
+      - name: Download build jar
+        run: |
+          echo "Downloading build #${{ matrix.id }} with JAR from ${{ matrix.url }}"
+          curl -fsSL "${{ matrix.url }}" -o ./velocity.jar
+
+      - name: Download rcon-cli
+        run: |
+          set -euo pipefail
+          RCON_URL="https://github.com/itzg/rcon-cli/releases/download/1.7.0/rcon-cli_1.7.0_linux_amd64.tar.gz"
+          mkdir -p ./tools
+          curl -fsSL "$RCON_URL" -o ./tools/rcon.tar.gz
+          tar -xzf ./tools/rcon.tar.gz -C ./tools
+          chmod +x ./tools/rcon-cli
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Launch velocity
+        run: |
+          set -euo pipefail
+
+          echo 'eula=true' > ./eula.txt
+
+          mkdir -p ./plugins/bStats
+          echo 'enabled=false' > ./plugins/bStats/config.txt
+
+          mkdir -p ./plugins/velocircon
+          echo -e "enable: true\ncolor: false" > ./plugins/velocircon/rcon.yml
+
+          JAR_FILE=velocity.jar
+          TIMEOUT_SECONDS=10   # таймаут на запуск сервера
+          RCON_TIMEOUT=5      # таймаут на rcon-test
+
+          echo "Starting Velocity server..."
+
+          java -Xms100M -jar ./velocity.jar > server.log 2>&1 &
+          SERVER_PID=$!
+
+          tail -f server.log &
+          TAIL_PID=$!
+
+          echo "Waiting for server to be ready..."
+          START_TIME=$(date +%s)
+          while true; do
+            if grep -q "\[.*INFO\]: Done" server.log; then
+              echo "Server ready!"
+              break
+            fi
+
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "::error::Server process terminated unexpectedly"
+              cat server.log
+              exit 1
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START_TIME))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "::error::Server startup timeout after $TIMEOUT_SECONDS seconds"
+              kill $SERVER_PID || true
+              cat server.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "Running rcon-test..."
+          set +e
+          FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
+          FIRST_LINE=$(echo "$FIRST_LINE" | sed -r 's/\x1B\[[0-9;]*[mK]//g' | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+
+          VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
+          BUILD="${{ matrix.id }}"
+          if echo "$FIRST_LINE" | grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
+              echo "RCON test succeeded! First line matches pattern."
+          else
+              echo "::error::RCON test failed. First line does not match expected pattern."
+              echo "Expected pattern: Velocity $VERSION (git-<hash>-b$BUILD)"
+              echo "Actual: $FIRST_LINE"
+              exit 1
+          fi
+          set -e
+
+          echo "Stopping server..."
+          kill $SERVER_PID || true
+          wait $SERVER_PID 2>/dev/null || true
+          kill $TAIL_PID || true
+
+          exit 0
+
+      - name: Create Markdown report
+        if: failure()
+        run: |
+          REPORT_FILE="failure-report.md"
+
+          echo "Creating Markdown report: $REPORT_FILE"
+
+          cat <<EOF > "$REPORT_FILE"
+          ---
+          title: Velocircon ${{ needs.prepare.outputs.latest_release }} test failure for velocity ${{ vars.PAPERMC_VELOCITY_VERSION }}#${{ matrix.id }} 
+          assignees: code-lime
+          labels: bug
+          ---
+          # Test failure report
+
+          **Velocity Build ID:** ${{ matrix.id }}
+          **Velocity Version:** ${{ vars.PAPERMC_VELOCITY_VERSION }}
+          **Velocity Build URL:** [Download Link](${{ matrix.url }})
+          **Velocircon Release:** ${{ needs.prepare.outputs.latest_release }}
+
+          The automated test for this Velocity build failed.
+          Please check the server and RCON logs for details.
+
+          EOF
+          echo "Report file created at $REPORT_FILE"
+
+      - name: Create issue on failure
+        if: failure()
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: failure-report.md
