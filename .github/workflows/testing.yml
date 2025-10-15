@@ -24,6 +24,7 @@ jobs:
         with:
           ref: build-state
           fetch-depth: 0
+          persist-credentials: true
         continue-on-error: true
 
       - name: Create build-state branch if missing
