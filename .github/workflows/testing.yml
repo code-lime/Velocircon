@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      latest_release: ${{ steps.release.outputs.latest_release }}
     steps:
       - name: Checkout build-state branch (if exists)
         id: checkout-state
@@ -69,29 +70,36 @@ jobs:
             exit 1
           fi
 
-          echo "Extracting build IDs..."
-          jq -r '.[].id' builds.json > all_ids.txt
-          sort -u all_ids.txt -o all_ids.txt
-
+          echo "Extracting build IDs and download URLs..."
+          # Получаем все id и url
+          jq -r '.[] | {id: .id, url: .downloads["server:default"].url} | @base64' builds.json > all_builds.txt
+      
           touch .last_builds
-          sort -u .last_builds -o .last_builds
-
-          NEW_IDS_FILE=new_ids.txt
-          comm -23 all_ids.txt .last_builds > "$NEW_IDS_FILE"
-
-          if [ ! -s "$NEW_IDS_FILE" ]; then
+          sort -u .last_builds -o .last_builds || true
+      
+          # Вычитаем уже обработанные id
+          NEW_BUILDS_FILE=new_builds.txt
+          while read line; do
+            ID=$(echo "$line" | base64 --decode | jq -r '.id')
+            if ! grep -qx "$ID" .last_builds; then
+              echo "$line" >> "$NEW_BUILDS_FILE"
+            fi
+          done < all_builds.txt
+      
+          if [ ! -s "$NEW_BUILDS_FILE" ]; then
             echo "No new builds found."
             echo "matrix=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          echo "New builds detected:"
-          cat "$NEW_IDS_FILE"
-
-          JSON=$(jq -R -s -c 'split("\n") | map(select(length>0))' < "$NEW_IDS_FILE")
-          echo "matrix=$JSON" >> "$GITHUB_OUTPUT"
-
-          cat "$NEW_IDS_FILE" >> .last_builds
+      
+          # Собираем JSON-массив объектов
+          MATRIX_JSON=$(jq -n '[inputs[] | @base64 | map(fromjson)]' --slurpfile inputs "$NEW_BUILDS_FILE")
+          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+      
+          # Добавляем новые id в .last_builds
+          cut -d'"' -f4 "$NEW_BUILDS_FILE" | while read id; do
+            echo "$id" >> .last_builds
+          done
           sort -u .last_builds -o .last_builds
 
       - name: Commit updated .last_builds
@@ -101,45 +109,49 @@ jobs:
           commit_message: "Update last processed builds"
           branch: build-state
           file_pattern: .last_builds
-          #commit_user_name: github-actions[bot]
-          #commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
           push_options: --force
 
-      - name: Get latest release
-        id: release
+      - name: Download release file
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          LATEST=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
-          if [ -z "$LATEST" ]; then
-            echo "::error::No releases found in repository."
-            exit 1
-          fi
-          echo "latest_release=$LATEST" >> $GITHUB_OUTPUT
-          echo "Latest: $LATEST"
+          # Скачиваем последний релиз и выбираем файл по паттерну
+          URL=$(gh release download --pattern "velocity-*.jar" --latest --json assets -q '.assets[0].browserDownloadUrl')
+          
+          echo "Downloading file: $URL"
+          curl -fsSL "$URL" -o velocity.jar
 
-#  process-build:
-#    needs: prepare
-#    runs-on: ubuntu-latest
-#    if: ${{ fromJSON(needs.prepare.outputs.build_matrix).include != '' }}
-#    strategy:
-#      matrix: ${{ fromJSON(needs.prepare.outputs.matrix).ids }}
-#    steps:
-#      - name: Checkout repository
-#        uses: actions/checkout@v4
-#
-#      - name: Save build file
-#        run: |
-#          echo "Saving build ${{ matrix }} to file"
-#          jq ".[] | select(.id == ${{ matrix }})" builds.json > build-${{ matrix }}.json
-#
-#      - name: Use latest release
-#        run: |
-#          echo "Latest release: ${{ needs.prepare.outputs.release_release }}"
-#      
-#      - name: Process build
-#        run: |
-#          echo "Processing build file build-${{ matrix }}.json"
-#          cat build-${{ matrix }}.json
-#          # Здесь можно скачать JAR, проверить SHA256 и т.д.
+      - name: Upload release file as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-jar
+          path: velocity.jar
+
+  process-build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: ${{ needs.prepare.outputs.matrix != '[]' }}
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: release-jar
+          path: ./plugins
+
+      - name: Download build jar
+        run: |
+          echo "Downloading build #${{ matrix.id }} with JAR from ${{ matrix.url }}"
+          curl -fsSL "${{ matrix.url }}" -o ./velocity.jar
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Launch velocity
+        run: |
+          echo 'eula=true' > eula.txt
+          java -jar ./velocity.jar
