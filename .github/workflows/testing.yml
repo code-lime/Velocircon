@@ -29,9 +29,6 @@ jobs:
       - name: Create build-state branch if missing
         if: steps.checkout-state.outcome == 'failure'
         run: |
-          git init
-          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          
           git switch --orphan build-state
           git rm -rf .
           git commit --allow-empty -m "Initialize empty branch"
