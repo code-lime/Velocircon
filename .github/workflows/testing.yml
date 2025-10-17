@@ -108,6 +108,7 @@ jobs:
           push_options: --force
 
       - name: Download release file
+        if: steps.set-matrix.outputs.matrix != '[]'
         id: download-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -120,6 +121,7 @@ jobs:
           echo "latest_release=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Upload release file as artifact
+        if: steps.set-matrix.outputs.matrix != '[]'
         uses: actions/upload-artifact@v4
         with:
           name: release-jar
