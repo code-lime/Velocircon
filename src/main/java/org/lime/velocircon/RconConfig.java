@@ -1,16 +1,9 @@
 package org.lime.velocircon;
 
-public record RconConfig(
-        boolean enable,
-        String host,
-        int port,
-        String password,
-        boolean colors
-) {
-    public static final RconConfig DEFAULT = new RconConfig(
-            false,
-            "0.0.0.0",
-            25575,
-            "PASSWORD",
-            true);
+public class RconConfig {
+    public boolean enable = false;
+    public String host = "0.0.0.0";
+    public int port = 25575;
+    public String password = "PASSWORD";
+    public boolean colors = true;
 }

@@ -40,7 +40,7 @@ public class Velocircon {
         this.dataFolder = dataFolder;
         this.metricsFactory = metricsFactory;
 
-        this.rconService = new RconService(this, proxy, ConfigLoader.create(dataFolder, "rcon", RconConfig.DEFAULT), logger);
+        this.rconService = new RconService(this, proxy, ConfigLoader.create(dataFolder, "rcon", new RconConfig()), logger);
     }
 
     @Subscribe

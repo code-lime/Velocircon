@@ -44,13 +44,13 @@ public class RconService
 
     public CompletableFuture<Void> reloadConfig() throws IOException {
         RconConfig config = configLoader.load();
-        InetSocketAddress address = new InetSocketAddress(config.host(), config.port());
+        InetSocketAddress address = new InetSocketAddress(config.host, config.port);
 
         return disable()
                 .handle((disabled, e) -> {
-                    if (!config.enable())
+                    if (!config.enable)
                         return CompletableFuture.completedFuture((Void)null);
-                    this.password = config.password();
+                    this.password = config.password;
                     return this.binder.bind(address, config)
                             .handle((channel, ex) -> {
                                 if (channel != null)

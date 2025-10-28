@@ -90,10 +90,10 @@ public class RconConnectionHandler extends ChannelInboundHandlerAdapter {
                                     result = Component.text("Error executing: " + payload + " (" + ex.getMessage() + ")")
                                             .color(NamedTextColor.RED);
                                 }
-                                String postfix = config.colors()
+                                String postfix = config.colors
                                         ? LegacyComponentSerializer.SECTION_CHAR + "r"
                                         : "";
-                                ComponentEncoder<Component, String> encoder = config.colors()
+                                ComponentEncoder<Component, String> encoder = config.colors
                                         ? LegacyComponentSerializer.legacySection()
                                         : PlainTextComponentSerializer.plainText();
                                 sendResponse(ctx, requestId, PacketType.COMMAND_RESPONSE, encoder.serialize(result) + postfix);
