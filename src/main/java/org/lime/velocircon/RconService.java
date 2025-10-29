@@ -8,6 +8,7 @@ import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.jetbrains.annotations.Nullable;
+import org.lime.velocircon.permissions.PermissionFactory;
 import org.lime.velocircon.server.RconBinder;
 import org.lime.velocircon.server.RconServer;
 import org.lime.velocircon.utils.NettyFutureUtils;
@@ -15,10 +16,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class RconService
@@ -31,6 +29,7 @@ public class RconService
     private final ConfigLoader<RconConfig> configLoader;
     private final RconBinder binder;
     private final Logger logger;
+    private Collection<PermissionFactory> permissionFactories = Collections.emptyList();
     private @Nullable ChannelGroup channels;
 
     private String password;
@@ -51,6 +50,7 @@ public class RconService
                 .handle((disabled, e) -> {
                     if (!config.enable)
                         return CompletableFuture.completedFuture((Void)null);
+                    this.permissionFactories = PermissionFactory.load(config, logger);
                     this.password = config.password;
                     return this.binder.bind(address, config)
                             .handle((channel, ex) -> {
@@ -67,6 +67,7 @@ public class RconService
     }
     public CompletableFuture<Void> disable() {
         this.password = null;
+        this.permissionFactories = Collections.emptyList();
         return Optional.ofNullable(this.channels)
                 .map(v -> {
                     logger.info("Shutting down RCON server...");
@@ -90,6 +91,7 @@ public class RconService
         RconCommandSource source = new RconCommandSource(
                 this.plugin,
                 this.server.getScheduler(),
+                this.permissionFactories,
                 FLUSH_MILLISECONDS,
                 FLUSH_WAIT_COUNT);
         return this.server

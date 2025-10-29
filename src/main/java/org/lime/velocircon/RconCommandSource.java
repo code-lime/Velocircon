@@ -1,8 +1,7 @@
 package org.lime.velocircon;
 
-import com.velocitypowered.api.permission.PermissionFunction;
+import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.permission.Tristate;
-import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import com.velocitypowered.api.scheduler.Scheduler;
 import net.kyori.adventure.audience.MessageType;
 import net.kyori.adventure.identity.Identity;
@@ -11,16 +10,18 @@ import net.kyori.adventure.permission.PermissionChecker;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
+import org.lime.velocircon.permissions.PermissionFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
-public class RconCommandSource implements ConsoleCommandSource {
-    private final PermissionFunction permissionFunction = PermissionFunction.ALWAYS_TRUE;
-    private final Pointers pointers = ConsoleCommandSource.super.pointers().toBuilder()
+public class RconCommandSource
+        implements CommandSource {
+    private final Pointers pointers = CommandSource.super.pointers().toBuilder()
             .withDynamic(PermissionChecker.POINTER, this::getPermissionChecker)
             .withStatic(FacetPointers.TYPE, FacetPointers.Type.CONSOLE)
             .build();
@@ -29,16 +30,19 @@ public class RconCommandSource implements ConsoleCommandSource {
 
     private final Object plugin;
     private final Scheduler scheduler;
+    private final Collection<PermissionFactory> permissionFactories;
     private final long flushMs;
     private final int flushWaitCount;
 
     public RconCommandSource(
             Object plugin,
             Scheduler scheduler,
+            Collection<PermissionFactory> permissionFactories,
             long flushMs,
             int flushWaitCount) {
         this.plugin = plugin;
         this.scheduler = scheduler;
+        this.permissionFactories = permissionFactories;
         this.flushMs = flushMs;
         this.flushWaitCount = flushWaitCount;
     }
@@ -50,7 +54,17 @@ public class RconCommandSource implements ConsoleCommandSource {
 
     @Override
     public @NotNull Tristate getPermissionValue(@NotNull String permission) {
-        return this.permissionFunction.getPermissionValue(permission);
+        Tristate current = Tristate.UNDEFINED;
+        for (var permissionFactory : permissionFactories) {
+            var value = permissionFactory.check(permission);
+            switch (value) {
+                case FALSE -> {
+                    return Tristate.FALSE;
+                }
+                case TRUE -> current = Tristate.TRUE;
+            }
+        }
+        return current;
     }
 
     @Override
