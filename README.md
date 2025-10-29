@@ -27,32 +27,49 @@ Velocircon enables administrators and automation systems to connect to Velocity 
 
 ## Configuration
 
-After the first launch, the plugin will generate a configuration file `rcon.yml` in the `plugins/velocircon` directory.  
+After the first launch, the plugin will generate a configuration file `rcon.yml` in the `plugins/velocircon` directory.
 **You must set a password and enable RCON (`enable: true`), otherwise the plugin will not work!**
 
 Default configuration:
+
 ```yaml
 enable: false
 host: 0.0.0.0
 port: 25575
 password: PASSWORD
 colors: true
+console-output: true
+permissions:
+  luck-perms:
+    enable: false
+    group: '*'
+  regex:
+    enable: false
+    regex: minecraft\.(.*)
 ```
+
 - `enable`: Set to `true` to activate RCON support.
 - `host`: Address to bind the RCON server (default: `0.0.0.0` for all interfaces).
 - `port`: Port for RCON connections.
 - `password`: Set a strong password for authentication.
 - `colors`: Enables color codes in command output (recommended).
+- `console-output`: Enables redirect RCON output to the console
+- `permissions`: RCON connection permissions. If all `enable: false` - all permissions are allowed
+  - `luck-perms`: Use [LuckPerms](https://modrinth.com/plugin/luckperms) group to control connection permissions
+    - '`*`' or an empty string - all permissions are allowed
+  - `regex`: Use `Regex` to control connection permissions
 
 ## Usage
 
-To connect to Velocity via RCON, use any compatible client.  
+To connect to Velocity via RCON, use any compatible client.
 We recommend [itzg/rcon-cli](https://github.com/itzg/rcon-cli) for its flexibility and ease of use.
 
 Example connection command:
+
 ```sh
 rcon-cli --host <your_host> --port 25575 --password <your_password>
 ```
+
 Once connected, you can send any Velocity command as if you were using the Velocity console.
 
 ## Requirements
