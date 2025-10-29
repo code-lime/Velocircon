@@ -3,8 +3,8 @@
 ## 1.0.4
 
 - Added: Configuration permissions for rcon connection
-  - Regex ([Regular expression - Wikipedia](https://en.wikipedia.org/wiki/Regular_expression)) permission checking
-  - LuckPerms ([LuckPerms - Velocity Plugin](https://modrinth.com/plugin/luckperms)) group permission checking
+  - [Regex](https://en.wikipedia.org/wiki/Regular_expression) permission checking
+  - [LuckPerms](https://modrinth.com/plugin/luckperms) group permission checking
 - Added: Option to redirect rcon output to the console
 - Fixed: Commands with long wait times are not displayed (example: *lpv editor*)
   - Updated waiting output logic. Minimum wait 3 * 300ms
