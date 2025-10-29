@@ -13,8 +13,14 @@ public class RconConfig {
 
     @ConfigSerializable
     public static class Permissions {
+        public LuckPerms luckPerms = new LuckPerms();
         public Regex regex = new Regex();
 
+        @ConfigSerializable
+        public static class LuckPerms {
+            public boolean enable = false;
+            public String group = "*";
+        }
         @ConfigSerializable
         public static class Regex {
             public boolean enable = false;

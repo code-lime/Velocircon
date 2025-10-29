@@ -56,6 +56,11 @@ dependencies {
     implementation "net.kyori:adventure-platform-facet:${versionAdventureFaset}"
 }
 //</editor-fold>
+//<editor-fold desc="Settings: Libraries: LuckPerms">
+dependencies {
+    implementation "net.luckperms:api:${versionLuckPermsApi}"
+}
+//</editor-fold>
 //<editor-fold desc="Settings: Libraries: BStats">
 dependencies {
     compileOnly "org.bstats:bstats-velocity:${versionBStats}"

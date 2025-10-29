@@ -13,6 +13,18 @@ public interface PermissionFactory {
 
     static Collection<PermissionFactory> load(RconConfig config, Logger logger) {
         List<PermissionFactory> permissionFactories = new ArrayList<>();
+        try {
+            var luckPerms = config.permissions.luckPerms;
+            if (luckPerms.enable) {
+                Class.forName("net.luckperms.api.LuckPerms");
+                permissionFactories.add(LuckPermsPermissionFactory.create(luckPerms.group));
+                logger.info("LuckPerms permission provider loaded");
+            } else {
+                logger.info("LuckPerms permission provider disabled");
+            }
+        } catch (ClassNotFoundException ignored) {
+            logger.error("LuckPerms permission provider not loaded. LuckPerms not found");
+        }
         var regex = config.permissions.regex;
         if (regex.enable) {
             permissionFactories.add(RegexPermissionFactory.create(regex.regex));
