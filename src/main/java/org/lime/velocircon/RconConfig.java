@@ -13,5 +13,12 @@ public class RconConfig {
 
     @ConfigSerializable
     public static class Permissions {
+        public Regex regex = new Regex();
+
+        @ConfigSerializable
+        public static class Regex {
+            public boolean enable = false;
+            public String regex = "minecraft\\.(.*)";
+        }
     }
 }

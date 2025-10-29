@@ -13,6 +13,13 @@ public interface PermissionFactory {
 
     static Collection<PermissionFactory> load(RconConfig config, Logger logger) {
         List<PermissionFactory> permissionFactories = new ArrayList<>();
+        var regex = config.permissions.regex;
+        if (regex.enable) {
+            permissionFactories.add(RegexPermissionFactory.create(regex.regex));
+            logger.info("Regex permission provider loaded");
+        } else {
+            logger.info("Regex permission provider disabled");
+        }
         return permissionFactories;
     }
 }
