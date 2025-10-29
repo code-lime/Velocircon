@@ -54,6 +54,8 @@ public class RconCommandSource
 
     @Override
     public @NotNull Tristate getPermissionValue(@NotNull String permission) {
+        if (permissionFactories.isEmpty())
+            return Tristate.TRUE;
         Tristate current = Tristate.UNDEFINED;
         for (var permissionFactory : permissionFactories) {
             var value = permissionFactory.check(permission);
