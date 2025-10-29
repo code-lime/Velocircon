@@ -30,11 +30,17 @@ public class RconCommandSource implements ConsoleCommandSource {
     private final Object plugin;
     private final Scheduler scheduler;
     private final long flushMs;
+    private final int flushWaitCount;
 
-    public RconCommandSource(Object plugin, Scheduler scheduler, long flushMs) {
+    public RconCommandSource(
+            Object plugin,
+            Scheduler scheduler,
+            long flushMs,
+            int flushWaitCount) {
         this.plugin = plugin;
         this.scheduler = scheduler;
         this.flushMs = flushMs;
+        this.flushWaitCount = flushWaitCount;
     }
 
     @Override
@@ -56,7 +62,7 @@ public class RconCommandSource implements ConsoleCommandSource {
         CompletableFuture<List<Component>> result = new CompletableFuture<>();
         List<Component> messages = new ArrayList<>();
         Runnable poller = new Runnable() {
-            private boolean isFirst = true;
+            private int wait = flushWaitCount;
             @Override
             public void run() {
                 Component line;
@@ -65,8 +71,8 @@ public class RconCommandSource implements ConsoleCommandSource {
                     messages.add(line);
                     count++;
                 }
-                if (isFirst || count > 0) {
-                    isFirst = false;
+                wait = count > 0 ? flushWaitCount : (wait - 1);
+                if (wait > 0) {
                     scheduler.buildTask(plugin, this)
                             .delay(flushMs, TimeUnit.MILLISECONDS)
                             .schedule();

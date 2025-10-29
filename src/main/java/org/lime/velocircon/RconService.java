@@ -23,7 +23,8 @@ import java.util.concurrent.CompletableFuture;
 
 public class RconService
         implements RconServer {
-    private static final long FLUSH_MILLISECONDS = 200L;
+    private static final long FLUSH_MILLISECONDS = 300L;
+    private static final int FLUSH_WAIT_COUNT = 3;
 
     private final Object plugin;
     private final ProxyServer server;
@@ -86,7 +87,11 @@ public class RconService
     }
     @Override
     public CompletableFuture<Component> execute(String command) {
-        RconCommandSource source = new RconCommandSource(this.plugin, this.server.getScheduler(), FLUSH_MILLISECONDS);
+        RconCommandSource source = new RconCommandSource(
+                this.plugin,
+                this.server.getScheduler(),
+                FLUSH_MILLISECONDS,
+                FLUSH_WAIT_COUNT);
         return this.server
                 .getCommandManager()
                 .executeAsync(source, command)
