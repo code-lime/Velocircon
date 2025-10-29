@@ -9,8 +9,10 @@ import net.kyori.adventure.platform.facet.FacetPointers;
 import net.kyori.adventure.permission.PermissionChecker;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.jetbrains.annotations.NotNull;
 import org.lime.velocircon.permissions.PermissionFactory;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,28 +30,41 @@ public class RconCommandSource
 
     private final ConcurrentLinkedQueue<Component> lines = new ConcurrentLinkedQueue<>();
 
+    private final String command;
     private final Object plugin;
     private final Scheduler scheduler;
     private final Collection<PermissionFactory> permissionFactories;
     private final long flushMs;
     private final int flushWaitCount;
+    private final boolean consoleOutput;
+    private final ComponentLogger componentLogger;
 
     public RconCommandSource(
+            String command,
             Object plugin,
             Scheduler scheduler,
             Collection<PermissionFactory> permissionFactories,
             long flushMs,
-            int flushWaitCount) {
+            int flushWaitCount,
+            boolean consoleOutput,
+            ComponentLogger componentLogger) {
+        this.command = command;
         this.plugin = plugin;
         this.scheduler = scheduler;
         this.permissionFactories = permissionFactories;
         this.flushMs = flushMs;
         this.flushWaitCount = flushWaitCount;
+        this.consoleOutput = consoleOutput;
+        this.componentLogger = componentLogger;
     }
 
     @Override
     public void sendMessage(@NotNull Identity identity, @NotNull Component message, @NotNull MessageType messageType) {
         lines.add(message);
+        if (consoleOutput)
+            componentLogger.info(Component.empty()
+                    .append(Component.text("[/"+command+"] "))
+                    .append(message));
     }
 
     @Override

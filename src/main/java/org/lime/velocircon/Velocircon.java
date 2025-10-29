@@ -9,6 +9,9 @@ import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bstats.velocity.Metrics;
 import org.slf4j.Logger;
 
@@ -37,14 +40,19 @@ public class Velocircon {
     public Velocircon(
             ProxyServer proxy,
             Logger logger,
+            ComponentLogger componentLogger,
             @DataDirectory Path dataFolder,
             Metrics.Factory metricsFactory) throws IOException {
         this.proxy = proxy;
         this.logger = logger;
         this.dataFolder = dataFolder;
         this.metricsFactory = metricsFactory;
-
-        this.rconService = new RconService(this, proxy, ConfigLoader.create(dataFolder, "rcon", new RconConfig()), logger);
+        this.rconService = new RconService(
+            this,
+            proxy,
+            ConfigLoader.create(dataFolder, "rcon", new RconConfig()),
+            logger,
+            componentLogger);
     }
 
     @Subscribe

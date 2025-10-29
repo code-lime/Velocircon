@@ -6,6 +6,7 @@ import io.netty.channel.group.ChannelGroup;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.jetbrains.annotations.Nullable;
 import org.lime.velocircon.permissions.PermissionFactory;
@@ -29,16 +30,24 @@ public class RconService
     private final ConfigLoader<RconConfig> configLoader;
     private final RconBinder binder;
     private final Logger logger;
+    private final ComponentLogger componentLogger;
     private Collection<PermissionFactory> permissionFactories = Collections.emptyList();
     private @Nullable ChannelGroup channels;
 
     private String password;
+    private boolean consoleOutput;
 
-    public RconService(Object plugin, ProxyServer server, ConfigLoader<RconConfig> configLoader, Logger logger) {
+    public RconService(
+        Object plugin,
+        ProxyServer server,
+        ConfigLoader<RconConfig> configLoader,
+        Logger logger,
+        ComponentLogger componentLogger) {
         this.plugin = plugin;
         this.server = server;
         this.configLoader = configLoader;
         this.logger = logger;
+        this.componentLogger = componentLogger;
         this.binder = new RconBinder(this, logger);
     }
 
@@ -52,6 +61,7 @@ public class RconService
                         return CompletableFuture.completedFuture((Void)null);
                     this.permissionFactories = PermissionFactory.load(config, logger);
                     this.password = config.password;
+                    this.consoleOutput = config.consoleOutput;
                     return this.binder.bind(address, config)
                             .handle((channel, ex) -> {
                                 if (channel != null)
@@ -89,11 +99,14 @@ public class RconService
     @Override
     public CompletableFuture<Component> execute(String command) {
         RconCommandSource source = new RconCommandSource(
+                command,
                 this.plugin,
                 this.server.getScheduler(),
                 this.permissionFactories,
                 FLUSH_MILLISECONDS,
-                FLUSH_WAIT_COUNT);
+                FLUSH_WAIT_COUNT,
+                this.consoleOutput,
+                this.componentLogger);
         return this.server
                 .getCommandManager()
                 .executeAsync(source, command)

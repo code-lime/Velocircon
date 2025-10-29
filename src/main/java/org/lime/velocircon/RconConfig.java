@@ -9,6 +9,7 @@ public class RconConfig {
     public int port = 25575;
     public String password = "PASSWORD";
     public boolean colors = true;
+    public boolean consoleOutput = true;
     public Permissions permissions = new Permissions();
 
     @ConfigSerializable
