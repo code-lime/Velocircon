@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- Fixed: Commands with long wait times are not displayed (example: *lpv editor*)
+  - Updated waiting output logic. Minimum wait 3 * 300ms
+
 ## 1.0.3
 
 - Support any velocity 3.4 builds
