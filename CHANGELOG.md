@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- Fixed: Commands supported only in the console work correctly with global permission (example: *end*)
+
 ## 1.0.4
 
 - Added: Configuration permissions for rcon connection
