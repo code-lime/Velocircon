@@ -99,28 +99,47 @@ jobs:
           
           # Create empty JSON array
           echo "[]" > "$DEPENDENCIES_OUT"
+          echo "🔍 DEBUG: Starting to parse DEPENDENCIES.md"
           
           # Parse dependencies and create JSON
+          line_num=0
           while IFS= read -r line; do
+            line_num=$((line_num + 1))
+            echo "🔍 DEBUG: Line $line_num: '$line'"
+            
             if [[ $line =~ ^##[[:space:]]+(.+)$ ]]; then
               dependency_name="${BASH_REMATCH[1]}"
+              echo "🔍 DEBUG: Found dependency section: '$dependency_name'"
               project_id=""
               url=""
               dep_type="optional"
               
               # Read next lines to get details
+              detail_line_num=0
               while IFS= read -r detail_line; do
+                detail_line_num=$((detail_line_num + 1))
+                echo "🔍 DEBUG: Detail line $detail_line_num: '$detail_line'"
+                
                 # Break if we hit another section header
-                [[ $detail_line =~ ^##[[:space:]]+ ]] && break
+                if [[ $detail_line =~ ^##[[:space:]]+ ]]; then
+                  echo "🔍 DEBUG: Hit next section header, breaking inner loop"
+                  break
+                fi
                 
                 if [[ $detail_line =~ \*\*Project ID\*\*:[[:space:]]+(.+)$ ]]; then
                   project_id="${BASH_REMATCH[1]}"
+                  echo "🔍 DEBUG: Matched Project ID: '$project_id'"
                 elif [[ $detail_line =~ \*\*URL\*\*:[[:space:]]+(.+)$ ]]; then
                   url="${BASH_REMATCH[1]}"
+                  echo "🔍 DEBUG: Matched URL: '$url'"
                 elif [[ $detail_line =~ \*\*Type\*\*:[[:space:]]+(.+)$ ]]; then
                   dep_type="${BASH_REMATCH[1]}"
+                  echo "🔍 DEBUG: Matched Type: '$dep_type'"
                 fi
               done
+              
+              echo "🔍 DEBUG: Finished reading details for '$dependency_name'"
+              echo "🔍 DEBUG: project_id='$project_id', url='$url', dep_type='$dep_type'"
               
               # Add to JSON if we have project_id
               if [ -n "$project_id" ]; then
@@ -133,21 +152,40 @@ jobs:
                   modrinth_type="optional"
                 fi
                 
+                echo "🔍 DEBUG: Adding dependency to JSON: name='$dependency_name', project_id='$project_id', url='$url', type='$modrinth_type'"
+                
                 # Add to JSON array
                 jq --arg name "$dependency_name" --arg project_id "$project_id" --arg url "$url" --arg type "$modrinth_type" \
                   '. += [{"name": $name, "project_id": $project_id, "url": $url, "dependency_type": $type}]' \
                   "$DEPENDENCIES_OUT" > "${DEPENDENCIES_OUT}.tmp" && mv "${DEPENDENCIES_OUT}.tmp" "$DEPENDENCIES_OUT"
+                
+                if [ $? -eq 0 ]; then
+                  echo "🔍 DEBUG: Successfully added dependency to JSON"
+                else
+                  echo "🔍 DEBUG: ERROR: Failed to add dependency to JSON"
+                fi
+              else
+                echo "🔍 DEBUG: Skipping dependency '$dependency_name' - no project_id found"
               fi
             fi
           done < DEPENDENCIES.md
           
+          echo "🔍 DEBUG: Finished parsing DEPENDENCIES.md (processed $line_num lines)"
+          
+          echo "🔍 DEBUG: Checking final JSON output"
+          echo "🔍 DEBUG: File exists: $([ -f "$DEPENDENCIES_OUT" ] && echo "yes" || echo "no")"
+          echo "🔍 DEBUG: File size: $(wc -c < "$DEPENDENCIES_OUT" 2>/dev/null || echo "0") bytes"
+          
           LENGTH=$(jq -r 'length' "$DEPENDENCIES_OUT" 2>/dev/null || echo "0")
+          echo "🔍 DEBUG: JSON array length: $LENGTH"
+          
           if [ -s "$DEPENDENCIES_OUT" ] && [ "$LENGTH" -gt 0 ]; then
             echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
             echo "✅ Extracted dependencies"
             echo "Dependencies content:"
             cat "$DEPENDENCIES_OUT"
           else
+            echo "🔍 DEBUG: No valid dependencies found or file is empty"
             echo "⚠️ No valid dependencies found in DEPENDENCIES.md, using empty dependencies"
             echo "[]" > "$DEPENDENCIES_OUT"
             echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
