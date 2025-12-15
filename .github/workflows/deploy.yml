@@ -109,7 +109,10 @@ jobs:
               dep_type="optional"
               
               # Read next lines to get details
-              while IFS= read -r detail_line && [[ ! $detail_line =~ ^##[[:space:]]+ ]]; do
+              while IFS= read -r detail_line; do
+                # Break if we hit another section header
+                [[ $detail_line =~ ^##[[:space:]]+ ]] && break
+                
                 if [[ $detail_line =~ \*\*Project ID\*\*:[[:space:]]+(.+)$ ]]; then
                   project_id="${BASH_REMATCH[1]}"
                 elif [[ $detail_line =~ \*\*URL\*\*:[[:space:]]+(.+)$ ]]; then
