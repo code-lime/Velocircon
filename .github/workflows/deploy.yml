@@ -79,9 +79,9 @@ jobs:
 
       - name: Read DEPENDENCIES.md
         id: dependencies
-        #if : github.ref_type == 'tag'
+        if : github.ref_type == 'tag'
         run: |
-          DEPENDENCIES_OUT=DEPENDENCIES_TAG.json
+          DEPENDENCIES_OUT=dependencies.json
 
           if [ ! -f "DEPENDENCIES.md" ]; then
             echo "⚠️ DEPENDENCIES.md not found, using empty dependencies"
@@ -185,39 +185,6 @@ jobs:
             echo "[]" > "$DEPENDENCIES_OUT"
             echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
           fi
-      - name: Read dependencies test
-        id: dependencies2
-        run: |
-          DEPENDENCIES_OUT=DEPENDENCIES_TAG.json
-          HANGAR_DEPS_FILE=hangar_dependencies.json
-          
-          if [ -f "$DEPENDENCIES_OUT" ]; then
-            DEPENDENCIES_CONTENT=$(cat "$DEPENDENCIES_OUT")
-            echo "MODRINTH_DEPENDENCIES<<EOF" >> $GITHUB_OUTPUT
-            echo "$DEPENDENCIES_CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            
-            # Also prepare Hangar format
-            LENGTH=$(jq -r 'length' "$DEPENDENCIES_OUT" 2>/dev/null || echo "0")
-            if [ "$LENGTH" -gt 0 ]; then
-              # Convert to Hangar format
-              jq -r 'map({
-                "name": .name,
-                "required": (.dependency_type == "required"),
-                "externalUrl": .url
-              })' "$DEPENDENCIES_OUT" > "$HANGAR_DEPS_FILE"
-              
-              HANGAR_DEPS_CONTENT=$(cat "$HANGAR_DEPS_FILE")
-              echo "HANGAR_DEPENDENCIES<<EOF" >> $GITHUB_OUTPUT
-              echo "$HANGAR_DEPS_CONTENT" >> $GITHUB_OUTPUT
-              echo "EOF" >> $GITHUB_OUTPUT
-            else
-              echo "HANGAR_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "MODRINTH_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
-            echo "HANGAR_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
-          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -307,7 +274,7 @@ jobs:
       - name: Read dependencies
         id: dependencies
         run: |
-          DEPENDENCIES_OUT=DEPENDENCIES_TAG.json
+          DEPENDENCIES_OUT=dependencies.json
           HANGAR_DEPS_FILE=hangar_dependencies.json
           
           if [ -f "$DEPENDENCIES_OUT" ]; then
