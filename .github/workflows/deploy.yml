@@ -99,78 +99,73 @@ jobs:
           
           # Create empty JSON array
           echo "[]" > "$DEPENDENCIES_OUT"
-          echo "🔍 DEBUG: Starting to parse DEPENDENCIES.md"
           
-          # Parse dependencies and create JSON
-          line_num=0
-          while IFS= read -r line; do
-            line_num=$((line_num + 1))
-            echo "🔍 DEBUG: Line $line_num: '$line'"
+          # Helper function to save dependency to JSON
+          save_dependency() {
+            local name="$1"
+            local pid="$2"
+            local url="$3"
+            local type="$4"
             
+            if [ -z "$pid" ]; then
+              echo "🔍 DEBUG: Skipping '$name' - no project_id"
+              return
+            fi
+            
+            # Normalize type
+            [ "$type" != "required" ] && type="optional"
+            
+            echo "🔍 DEBUG: Adding dependency: name='$name', project_id='$pid', url='$url', type='$type'"
+            
+            jq --arg name "$name" --arg pid "$pid" --arg url "$url" --arg type "$type" \
+              '. += [{"name": $name, "project_id": $pid, "url": $url, "dependency_type": $type}]' \
+              "$DEPENDENCIES_OUT" > "${DEPENDENCIES_OUT}.tmp" && mv "${DEPENDENCIES_OUT}.tmp" "$DEPENDENCIES_OUT"
+          }
+          
+          # Parse dependencies - single pass through file
+          current_name=""
+          current_project_id=""
+          current_url=""
+          current_type="optional"
+          
+          while IFS= read -r line; do
+            # Check if it's a section header
             if [[ $line =~ ^##[[:space:]]+(.+)$ ]]; then
-              dependency_name="${BASH_REMATCH[1]}"
-              echo "🔍 DEBUG: Found dependency section: '$dependency_name'"
-              project_id=""
-              url=""
-              dep_type="optional"
-              
-              # Read next lines to get details
-              detail_line_num=0
-              while IFS= read -r detail_line; do
-                detail_line_num=$((detail_line_num + 1))
-                echo "🔍 DEBUG: Detail line $detail_line_num: '$detail_line'"
-                
-                # Break if we hit another section header
-                if [[ $detail_line =~ ^##[[:space:]]+ ]]; then
-                  echo "🔍 DEBUG: Hit next section header, breaking inner loop"
-                  break
-                fi
-                
-                if [[ $detail_line =~ \*\*Project ID\*\*:[[:space:]]+(.+)$ ]]; then
-                  project_id="${BASH_REMATCH[1]}"
-                  echo "🔍 DEBUG: Matched Project ID: '$project_id'"
-                elif [[ $detail_line =~ \*\*URL\*\*:[[:space:]]+(.+)$ ]]; then
-                  url="${BASH_REMATCH[1]}"
-                  echo "🔍 DEBUG: Matched URL: '$url'"
-                elif [[ $detail_line =~ \*\*Type\*\*:[[:space:]]+(.+)$ ]]; then
-                  dep_type="${BASH_REMATCH[1]}"
-                  echo "🔍 DEBUG: Matched Type: '$dep_type'"
-                fi
-              done
-              
-              echo "🔍 DEBUG: Finished reading details for '$dependency_name'"
-              echo "🔍 DEBUG: project_id='$project_id', url='$url', dep_type='$dep_type'"
-              
-              # Add to JSON if we have project_id
-              if [ -n "$project_id" ]; then
-                # Convert type to Modrinth format
-                if [ "$dep_type" = "optional" ]; then
-                  modrinth_type="optional"
-                elif [ "$dep_type" = "required" ]; then
-                  modrinth_type="required"
-                else
-                  modrinth_type="optional"
-                fi
-                
-                echo "🔍 DEBUG: Adding dependency to JSON: name='$dependency_name', project_id='$project_id', url='$url', type='$modrinth_type'"
-                
-                # Add to JSON array
-                jq --arg name "$dependency_name" --arg project_id "$project_id" --arg url "$url" --arg type "$modrinth_type" \
-                  '. += [{"name": $name, "project_id": $project_id, "url": $url, "dependency_type": $type}]' \
-                  "$DEPENDENCIES_OUT" > "${DEPENDENCIES_OUT}.tmp" && mv "${DEPENDENCIES_OUT}.tmp" "$DEPENDENCIES_OUT"
-                
-                if [ $? -eq 0 ]; then
-                  echo "🔍 DEBUG: Successfully added dependency to JSON"
-                else
-                  echo "🔍 DEBUG: ERROR: Failed to add dependency to JSON"
-                fi
-              else
-                echo "🔍 DEBUG: Skipping dependency '$dependency_name' - no project_id found"
+              # Save previous dependency if we have one
+              if [ -n "$current_name" ]; then
+                save_dependency "$current_name" "$current_project_id" "$current_url" "$current_type"
               fi
+              
+              # Start new dependency
+              current_name="${BASH_REMATCH[1]}"
+              current_project_id=""
+              current_url=""
+              current_type="optional"
+              echo "🔍 DEBUG: Found section: '$current_name'"
+              
+            # Check for Project ID
+            elif [[ $line =~ \*\*Project[[:space:]]ID\*\*:[[:space:]]+(.+)$ ]]; then
+              current_project_id="${BASH_REMATCH[1]}"
+              echo "🔍 DEBUG: Project ID: '$current_project_id'"
+              
+            # Check for URL
+            elif [[ $line =~ \*\*URL\*\*:[[:space:]]+(.+)$ ]]; then
+              current_url="${BASH_REMATCH[1]}"
+              echo "🔍 DEBUG: URL: '$current_url'"
+              
+            # Check for Type
+            elif [[ $line =~ \*\*Type\*\*:[[:space:]]+(.+)$ ]]; then
+              current_type="${BASH_REMATCH[1]}"
+              echo "🔍 DEBUG: Type: '$current_type'"
             fi
           done < DEPENDENCIES.md
           
-          echo "🔍 DEBUG: Finished parsing DEPENDENCIES.md (processed $line_num lines)"
+          # Save last dependency
+          if [ -n "$current_name" ]; then
+            save_dependency "$current_name" "$current_project_id" "$current_url" "$current_type"
+          fi
+          
+          echo "🔍 DEBUG: Finished parsing DEPENDENCIES.md"
           
           echo "🔍 DEBUG: Checking final JSON output"
           echo "🔍 DEBUG: File exists: $([ -f "$DEPENDENCIES_OUT" ] && echo "yes" || echo "no")"
