@@ -12,6 +12,9 @@ import org.jetbrains.annotations.Nullable;
 import org.lime.velocircon.permissions.PermissionFactory;
 import org.lime.velocircon.server.RconBinder;
 import org.lime.velocircon.server.RconServer;
+import org.lime.velocircon.sources.BaseRconCommandSource;
+import org.lime.velocircon.sources.PermissibleRconCommandSource;
+import org.lime.velocircon.sources.RootRconCommandSource;
 import org.lime.velocircon.utils.NettyFutureUtils;
 import org.slf4j.Logger;
 
@@ -98,15 +101,27 @@ public class RconService
     }
     @Override
     public CompletableFuture<Component> execute(String command) {
-        RconCommandSource source = new RconCommandSource(
-                command,
-                this.plugin,
-                this.server.getScheduler(),
-                this.permissionFactories,
-                FLUSH_MILLISECONDS,
-                FLUSH_WAIT_COUNT,
-                this.consoleOutput,
-                this.componentLogger);
+        BaseRconCommandSource source;
+        if (permissionFactories.isEmpty()) {
+            source = new RootRconCommandSource(
+                    command,
+                    this.plugin,
+                    this.server.getScheduler(),
+                    FLUSH_MILLISECONDS,
+                    FLUSH_WAIT_COUNT,
+                    this.consoleOutput,
+                    this.componentLogger);
+        } else {
+            source = new PermissibleRconCommandSource(
+                    command,
+                    this.plugin,
+                    this.server.getScheduler(),
+                    this.permissionFactories,
+                    FLUSH_MILLISECONDS,
+                    FLUSH_WAIT_COUNT,
+                    this.consoleOutput,
+                    this.componentLogger);
+        }
         return this.server
                 .getCommandManager()
                 .executeAsync(source, command)
