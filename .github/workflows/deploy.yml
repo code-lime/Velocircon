@@ -108,14 +108,14 @@ jobs:
             local type="$4"
             
             if [ -z "$pid" ]; then
-              echo "🔍 DEBUG: Skipping '$name' - no project_id"
+              echo "⚠️ Skipping '$name' - no project_id"
               return
             fi
             
             # Normalize type
             [ "$type" != "required" ] && type="optional"
             
-            echo "🔍 DEBUG: Adding dependency: name='$name', project_id='$pid', url='$url', type='$type'"
+            echo "✅ Adding dependency: name='$name', project_id='$pid', url='$url', type='$type'"
             
             jq --arg name "$name" --arg pid "$pid" --arg url "$url" --arg type "$type" \
               '. += [{"name": $name, "project_id": $pid, "url": $url, "dependency_type": $type}]' \
@@ -141,22 +141,18 @@ jobs:
               current_project_id=""
               current_url=""
               current_type="optional"
-              echo "🔍 DEBUG: Found section: '$current_name'"
               
             # Check for Project ID
             elif [[ $line =~ \*\*Project[[:space:]]ID\*\*:[[:space:]]+(.+)$ ]]; then
               current_project_id="${BASH_REMATCH[1]}"
-              echo "🔍 DEBUG: Project ID: '$current_project_id'"
               
             # Check for URL
             elif [[ $line =~ \*\*URL\*\*:[[:space:]]+(.+)$ ]]; then
               current_url="${BASH_REMATCH[1]}"
-              echo "🔍 DEBUG: URL: '$current_url'"
               
             # Check for Type
             elif [[ $line =~ \*\*Type\*\*:[[:space:]]+(.+)$ ]]; then
               current_type="${BASH_REMATCH[1]}"
-              echo "🔍 DEBUG: Type: '$current_type'"
             fi
           done < DEPENDENCIES.md
           
@@ -165,14 +161,7 @@ jobs:
             save_dependency "$current_name" "$current_project_id" "$current_url" "$current_type"
           fi
           
-          echo "🔍 DEBUG: Finished parsing DEPENDENCIES.md"
-          
-          echo "🔍 DEBUG: Checking final JSON output"
-          echo "🔍 DEBUG: File exists: $([ -f "$DEPENDENCIES_OUT" ] && echo "yes" || echo "no")"
-          echo "🔍 DEBUG: File size: $(wc -c < "$DEPENDENCIES_OUT" 2>/dev/null || echo "0") bytes"
-          
           LENGTH=$(jq -r 'length' "$DEPENDENCIES_OUT" 2>/dev/null || echo "0")
-          echo "🔍 DEBUG: JSON array length: $LENGTH"
           
           if [ -s "$DEPENDENCIES_OUT" ] && [ "$LENGTH" -gt 0 ]; then
             echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
@@ -180,7 +169,6 @@ jobs:
             echo "Dependencies content:"
             cat "$DEPENDENCIES_OUT"
           else
-            echo "🔍 DEBUG: No valid dependencies found or file is empty"
             echo "⚠️ No valid dependencies found in DEPENDENCIES.md, using empty dependencies"
             echo "[]" > "$DEPENDENCIES_OUT"
             echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
