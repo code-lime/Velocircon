@@ -122,12 +122,123 @@ jobs:
             ${{ steps.output_jar.outputs.JAR }}
             ${{ steps.metadata.outputs.METADATA }}
 
+      - name: Read DEPENDENCIES.md
+        id: dependencies
+        #if : github.ref_type == 'tag'
+        run: |
+          DEPENDENCIES_OUT=DEPENDENCIES_TAG.json
+
+          if [ ! -f "DEPENDENCIES.md" ]; then
+            echo "⚠️ DEPENDENCIES.md not found, using empty dependencies"
+            echo "[]" > "$DEPENDENCIES_OUT"
+            echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          if ! grep -q "^## " DEPENDENCIES.md; then
+            echo "❌ No dependency sections found in DEPENDENCIES.md"
+            exit 1
+          fi
+          
+          echo "✅ DEPENDENCIES.md has correct format"
+          
+          # Create empty JSON array
+          echo "[]" > "$DEPENDENCIES_OUT"
+          
+          # Parse dependencies and create JSON
+          while IFS= read -r line; do
+            if [[ $line =~ ^##[[:space:]]+(.+)$ ]]; then
+              dependency_name="${BASH_REMATCH[1]}"
+              project_id=""
+              url=""
+              dep_type="optional"
+              
+              # Read next lines to get details
+              while IFS= read -r detail_line && [[ ! $detail_line =~ ^##[[:space:]]+ ]]; do
+                if [[ $detail_line =~ \*\*Project ID\*\*:[[:space:]]+(.+)$ ]]; then
+                  project_id="${BASH_REMATCH[1]}"
+                elif [[ $detail_line =~ \*\*URL\*\*:[[:space:]]+(.+)$ ]]; then
+                  url="${BASH_REMATCH[1]}"
+                elif [[ $detail_line =~ \*\*Type\*\*:[[:space:]]+(.+)$ ]]; then
+                  dep_type="${BASH_REMATCH[1]}"
+                fi
+              done
+              
+              # Add to JSON if we have project_id
+              if [ -n "$project_id" ]; then
+                # Convert type to Modrinth format
+                if [ "$dep_type" = "optional" ]; then
+                  modrinth_type="optional"
+                elif [ "$dep_type" = "required" ]; then
+                  modrinth_type="required"
+                else
+                  modrinth_type="optional"
+                fi
+                
+                # Add to JSON array
+                jq --arg name "$dependency_name" --arg project_id "$project_id" --arg url "$url" --arg type "$modrinth_type" \
+                  '. += [{"name": $name, "project_id": $project_id, "url": $url, "dependency_type": $type}]' \
+                  "$DEPENDENCIES_OUT" > "${DEPENDENCIES_OUT}.tmp" && mv "${DEPENDENCIES_OUT}.tmp" "$DEPENDENCIES_OUT"
+              fi
+            fi
+          done < DEPENDENCIES.md
+          
+          if [ -s "$DEPENDENCIES_OUT" ] && [ "$(jq length "$DEPENDENCIES_OUT")" -gt 0 ]; then
+            echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
+            echo "✅ Extracted dependencies"
+            echo "Dependencies content:"
+            cat "$DEPENDENCIES_OUT"
+          else
+            echo "⚠️ No valid dependencies found in DEPENDENCIES.md, using empty dependencies"
+            echo "[]" > "$DEPENDENCIES_OUT"
+            echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
+          fi
+      - name: Read dependencies test
+        id: dependencies2
+        run: |
+          DEPENDENCIES_OUT=DEPENDENCIES_TAG.json
+          HANGAR_DEPS_FILE=hangar_dependencies.json
+          
+          if [ -f "$DEPENDENCIES_OUT" ]; then
+            DEPENDENCIES_CONTENT=$(cat "$DEPENDENCIES_OUT")
+            echo "MODRINTH_DEPENDENCIES<<EOF" >> $GITHUB_OUTPUT
+            echo "$DEPENDENCIES_CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            # Also prepare Hangar format
+            if [ "$(jq length "$DEPENDENCIES_OUT")" -gt 0 ]; then
+              # Convert to Hangar format
+              jq -r 'map({
+                "name": .name,
+                "required": (.dependency_type == "required"),
+                "externalUrl": .url
+              })' "$DEPENDENCIES_OUT" > "$HANGAR_DEPS_FILE"
+              
+              HANGAR_DEPS_CONTENT=$(cat "$HANGAR_DEPS_FILE")
+              echo "HANGAR_DEPENDENCIES<<EOF" >> $GITHUB_OUTPUT
+              echo "$HANGAR_DEPS_CONTENT" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            else
+              echo "HANGAR_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "MODRINTH_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
+            echo "HANGAR_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload changelog to artifact
         if: github.ref_type == 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: changelog
           path: ${{ steps.changelog.outputs.CHANGELOG }}
+
+      - name: Upload dependencies to artifact
+        if: github.ref_type == 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependencies
+          path: ${{ steps.dependencies.outputs.DEPENDENCIES }}
   publish:
     runs-on: ubuntu-latest
     needs: build
@@ -149,6 +260,43 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           else
             echo "CHANGELOG=No changelog found" >> $GITHUB_OUTPUT
+          fi
+      - name: Download dependencies from artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dependencies
+          path: .
+      - name: Read dependencies
+        id: dependencies
+        run: |
+          DEPENDENCIES_OUT=DEPENDENCIES_TAG.json
+          HANGAR_DEPS_FILE=hangar_dependencies.json
+          
+          if [ -f "$DEPENDENCIES_OUT" ]; then
+            DEPENDENCIES_CONTENT=$(cat "$DEPENDENCIES_OUT")
+            echo "MODRINTH_DEPENDENCIES<<EOF" >> $GITHUB_OUTPUT
+            echo "$DEPENDENCIES_CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            # Also prepare Hangar format
+            if [ "$(jq length "$DEPENDENCIES_OUT")" -gt 0 ]; then
+              # Convert to Hangar format
+              jq -r 'map({
+                "name": .name,
+                "required": (.dependency_type == "required"),
+                "externalUrl": .url
+              })' "$DEPENDENCIES_OUT" > "$HANGAR_DEPS_FILE"
+              
+              HANGAR_DEPS_CONTENT=$(cat "$HANGAR_DEPS_FILE")
+              echo "HANGAR_DEPENDENCIES<<EOF" >> $GITHUB_OUTPUT
+              echo "$HANGAR_DEPS_CONTENT" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            else
+              echo "HANGAR_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "MODRINTH_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
+            echo "HANGAR_DEPENDENCIES=[]" >> $GITHUB_OUTPUT
           fi
       - name: Download archive's from artifact
         uses: actions/download-artifact@v4
@@ -173,6 +321,7 @@ jobs:
           project: ${{ vars.MODRINTH_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
           changelog: ${{ steps.changelog.outputs.CHANGELOG }}
+          dependencies: ${{ steps.dependencies.outputs.MODRINTH_DEPENDENCIES }}
           loaders: 'velocity'
           game-versions: '["1.8.x","1.9.x","1.10.x","1.11.x","1.12.x","1.13.x","1.14.x","1.15.x","1.16.x","1.17.x","1.18.x","1.19.x","1.20.x","1.21.x"]'
           token: ${{ secrets.MODRINTH_TOKEN }}
@@ -186,6 +335,7 @@ jobs:
           description: ${{ steps.changelog.outputs.CHANGELOG }}
           api_token: ${{ secrets.HANGAR_TOKEN }}
           platform_dependencies: '{"VELOCITY":["${{ vars.HANGAR_VELOCITY_VERSION }}"]}'
+          plugin_dependencies: '{"VELOCITY":${{ steps.dependencies.outputs.HANGAR_DEPENDENCIES }}}'
           files: '[{"path":"./**/*.jar","platforms":["VELOCITY"]}]'
       - name: GitHub Release
         uses: softprops/action-gh-release@v2
