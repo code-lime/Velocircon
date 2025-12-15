@@ -2,7 +2,7 @@
 
 ## 1.0.5
 
-- Fixed: Commands supported only in the console work correctly with global permission (example: *end*)
+- Fixed: Commands supported only in the console work correctly with global permission (example: *stop*, *end*)
 
 ## 1.0.4
 
