@@ -48,20 +48,70 @@ permissions:
     regex: minecraft\.(.*)
 ```
 
+### Environment Variables
+
+Configuration options can also be overridden using **environment variables**. This is useful when running Velocity in Docker or other container environments.
+
+Environment variables use the following format:
+
+```
+VELOCIRCON__<CONFIG_PATH>
+```
+
+Rules:
+
+* The prefix **`VELOCIRCON__`** is required.
+* Use **double underscores `__`** to separate configuration levels.
+* Replace `-` with `_`.
+* Variable names are case-insensitive, but uppercase is recommended.
+
 ### Options
 
-- `enable`: Set to `true` to activate RCON support.
-- `host`: Address to bind the RCON server (default: `0.0.0.0` for all interfaces).
-- `port`: Port for RCON connections.
-- `password`: Set a strong password for authentication.
-- `colors`: Enables color codes in command output (recommended).
-- `console-output`: Redirects RCON output to the console.
+- `enable` (`VELOCIRCON__ENABLE`): Set to `true` to activate RCON support.
+- `host` (`VELOCIRCON__HOST`): Address to bind the RCON server (default: `0.0.0.0` for all interfaces).
+- `port` (`VELOCIRCON__PORT`): Port for RCON connections.
+- `password` (`VELOCIRCON__PASSWORD`): Set a strong password for authentication.
+- `colors` (`VELOCIRCON__COLORS`): Enables color codes in command output (recommended).
+- `console-output` (`VELOCIRCON__CONSOLE_OUTPUT`): Redirects RCON output to the console.
 - `permissions`: RCON connection permissions. If all `enable: false` - all permissions are allowed.
-
   - `luck-perms`: Use [LuckPerms](https://modrinth.com/plugin/luckperms) group to control connection permissions.
+    - `enable` (`VELOCIRCON__PERMISSIONS__LUCK_PERMS__ENABLE`): Enable usage `LuckPerms` permissions filter.
+    - `group` (`VELOCIRCON__PERMISSIONS__LUCK_PERMS__GROUP`): '`*`' or an empty string - all permissions are allowed.
+  - `regex`: Use [Regex](https://regex101.com) (regular expression) to control connection permissions.
+    - `enable` (`VELOCIRCON__PERMISSIONS__REGEX__ENABLE`): Enable usage `Regex` permissions filter.
+    - `regex` (`VELOCIRCON__PERMISSIONS__REGEX__REGEX`): `Regex` string.
 
-    - '`*`' or an empty string - all permissions are allowed.
-  - `regex`: Use `Regex` to control connection permissions.
+### Examples
+
+Config file:
+
+```yaml
+port: 25575
+console-output: true
+permissions:
+  luck-perms:
+    enable: false
+```
+
+Environment variables:
+
+```bash
+VELOCIRCON__PORT=25580
+VELOCIRCON__CONSOLE_OUTPUT=false
+VELOCIRCON__PERMISSIONS__LUCK_PERMS__ENABLE=true
+```
+
+Resulting configuration:
+
+```yaml
+port: 25580
+console-output: false
+permissions:
+  luck-perms:
+    enable: true
+```
+
+Environment variables **override values from `rcon.yml`**.
 
 ## Usage
 

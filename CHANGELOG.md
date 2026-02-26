@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- Added: Configuration values can now be overridden using environment variables (e.g., `VELOCIRCON__PORT=1234`)
+
 ## 1.0.5
 
 - Fixed: Commands supported only in the console work correctly with global permission (example: *stop*, *end*)
