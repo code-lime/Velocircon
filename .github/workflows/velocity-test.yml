@@ -1,0 +1,164 @@
+name: Velocity test
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        required: true
+        type: string
+      report_latest_release:
+        description: If not empty string - create issue on failure
+        required: false
+        type: string
+        default: ''
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  process-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(inputs.matrix) }}
+    if: ${{ inputs.matrix != '[]' }}
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: jars
+          path: ./plugins
+
+      - name: Download build jar
+        run: |
+          echo "Downloading build #${{ matrix.id }} with JAR from ${{ matrix.url }}"
+          curl -fsSL "${{ matrix.url }}" -o ./velocity.jar
+
+      - name: Download rcon-cli
+        run: |
+          set -euo pipefail
+          RCON_URL="https://github.com/itzg/rcon-cli/releases/download/1.7.0/rcon-cli_1.7.0_linux_amd64.tar.gz"
+          mkdir -p ./tools
+          curl -fsSL "$RCON_URL" -o ./tools/rcon.tar.gz
+          tar -xzf ./tools/rcon.tar.gz -C ./tools
+          chmod +x ./tools/rcon-cli
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Launch velocity
+        run: |
+          set -euo pipefail
+
+          echo 'eula=true' > ./eula.txt
+
+          mkdir -p ./plugins/bStats
+          echo 'enabled=false' > ./plugins/bStats/config.txt
+
+          mkdir -p ./plugins/velocircon
+          echo -e "enable: true\ncolor: false" > ./plugins/velocircon/rcon.yml
+
+          JAR_FILE=velocity.jar
+          TIMEOUT_SECONDS=120
+          RCON_TIMEOUT=60
+
+          echo "Starting Velocity server..."
+
+          java -Xms100M -jar ./velocity.jar > server.log 2>&1 &
+          SERVER_PID=$!
+
+          tail -f server.log &
+          TAIL_PID=$!
+
+          echo "Waiting for server to be ready..."
+          START_TIME=$(date +%s)
+          while true; do
+            if grep -q "\[.*INFO\]: Done" server.log; then
+              echo "Server ready!"
+              break
+            fi
+
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "::error::Server process terminated unexpectedly"
+              cat server.log
+              exit 1
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START_TIME))
+            if [ "$ELAPSED" -ge "$TIMEOUT_SECONDS" ]; then
+              echo "::error::Server startup timeout after $TIMEOUT_SECONDS seconds"
+              kill $SERVER_PID || true
+              cat server.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          echo "Running rcon-test..."
+          set +e
+          FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
+          FIRST_LINE=$(echo "$FIRST_LINE" | sed -r 's/\x1B\[[0-9;]*[mK]//g' | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+
+          VERSION="${{ matrix.version }}"
+          BUILD="${{ matrix.id }}"
+          if [[ "$VERSION" == *-SNAPSHOT ]]; then
+            PATTERN="^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"
+          else
+            PATTERN="^Velocity ${VERSION}$"
+          fi
+
+          if echo "$FIRST_LINE" | grep -E -q "$PATTERN"; then
+              echo "RCON test succeeded! First line matches pattern."
+          else
+              echo "::error::RCON test failed. First line does not match expected pattern."
+              echo "Expected pattern: $PATTERN"
+              echo "Actual: $FIRST_LINE"
+              exit 1
+          fi
+          set -e
+
+          echo "Stopping server..."
+          kill $SERVER_PID || true
+          wait $SERVER_PID 2>/dev/null || true
+          kill $TAIL_PID || true
+
+          exit 0
+
+      - name: Create Markdown report
+        if: failure() && inputs.report_latest_release != ''
+        run: |
+          REPORT_FILE="failure-report.md"
+
+          echo "Creating Markdown report: $REPORT_FILE"
+
+          cat <<EOF > "$REPORT_FILE"
+          ---
+          title: Velocircon ${{ inputs.report_latest_release }} test failure for velocity ${{ matrix.version }}#${{ matrix.id }} 
+          assignees: code-lime
+          labels: bug
+          ---
+          # Test failure report
+
+          **Velocity Build ID:** ${{ matrix.id }}
+          **Velocity Version:** ${{ matrix.version }}
+          **Velocity Build URL:** [Download Link](${{ matrix.url }})
+          **Velocircon Release:** ${{ inputs.report_latest_release }}
+
+          The automated test for this Velocity build failed.
+          Please check the server and RCON logs for details.
+
+          EOF
+          echo "Report file created at $REPORT_FILE"
+
+      - name: Create issue on failure
+        if: failure() && inputs.report_latest_release != ''
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: failure-report.md
