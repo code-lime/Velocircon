@@ -16,6 +16,16 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       latest_release: ${{ steps.download-release.outputs.latest_release }}
     steps:
+      - name: Checkout scripts branch
+        uses: actions/checkout@v5
+
+      - name: Export scripts into template folder
+        id: scripts
+        run: |
+          FOLDER="${{ runner.temp }}/scripts"
+          echo "FOLDER=$FOLDER" >> $GITHUB_OUTPUT
+          cp -r .github/workflows/scripts $FOLDER
+
       - name: Checkout build-state branch (if exists)
         id: checkout-state
         uses: actions/checkout@v5
@@ -44,8 +54,10 @@ jobs:
       - name: Fetch builds to matrix
         id: set-matrix
         uses: actions/github-script@v8
+        env:
+          SCRIPT_FILE: '${{ steps.scripts.outputs.FOLDER }}/fetch-builds.js'
         with:
-          script: await require('.github/workflows/scripts/fetch-builds.js')();
+          script: await require(process.env.SCRIPT_FILE)();
 
       - name: Commit updated .last_builds
         if: steps.set-matrix.outputs.matrix != '[]'
