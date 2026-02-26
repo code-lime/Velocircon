@@ -27,6 +27,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -238,9 +240,26 @@ jobs:
         with:
           name: dependencies
           path: ${{ steps.dependencies.outputs.DEPENDENCIES }}
+
+      - name: Fetch velocity builds for tests to matrix
+        if: github.ref_type == 'tag'
+        id: set-matrix
+        uses: actions/github-script@v8
+        env:
+          SCRIPT_FILE: '.github/workflows/scripts/fetch-builds.js'
+        with:
+          script: await require(process.env.SCRIPT_FILE)({ github, context, core });
+  tests:
+    needs: build
+    if: github.ref_type == 'tag'
+    uses: ./.github/workflows/velocity-test.yml
+    with:
+      matrix: ${{ needs.build.outputs.matrix }}
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   publish:
     runs-on: ubuntu-latest
-    needs: build
+    needs: tests
     if: github.ref_type == 'tag'
     steps:
       - name: Download changelog from artifact
