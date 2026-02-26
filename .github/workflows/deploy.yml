@@ -4,8 +4,14 @@ on:
   push:
     tags: [ "*" ]
     branches: [ "master" ]
+    paths-ignore:
+      - ./github/workflows/scripts/**
+      - ./github/workflows/testing.yml
   pull_request:
     branches: [ "master" ]
+    paths-ignore:
+      - ./github/workflows/scripts/**
+      - ./github/workflows/testing.yml
 
 permissions:
   contents: write
