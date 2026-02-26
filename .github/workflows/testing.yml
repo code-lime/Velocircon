@@ -57,7 +57,7 @@ jobs:
         env:
           SCRIPT_FILE: '${{ steps.scripts.outputs.FOLDER }}/fetch-builds.js'
         with:
-          script: await require(process.env.SCRIPT_FILE)();
+          script: await require(process.env.SCRIPT_FILE)({ github, context, core });
 
       - name: Commit updated .last_builds
         if: steps.set-matrix.outputs.matrix != '[]'

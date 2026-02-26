@@ -1,11 +1,10 @@
-const core = require('@actions/core');
 const fs = require('fs');
 const util = require('util');
 
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
-module.exports = async function () {
+module.exports = async ({ github, context, core }) => {
     const versionsUrl = `https://fill.papermc.io/v3/projects/velocity/versions`;
     core.startGroup(`Fetching versions from ${versionsUrl}`);
 
