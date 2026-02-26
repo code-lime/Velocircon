@@ -179,11 +179,17 @@ jobs:
 
           VERSION="${{ matrix.version }}"
           BUILD="${{ matrix.id }}"
-          if echo "$FIRST_LINE" | grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
+          if [[ "$VERSION" == *-SNAPSHOT ]]; then
+            PATTERN="^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"
+          else
+            PATTERN="^Velocity ${VERSION}$"
+          fi
+
+          if echo "$FIRST_LINE" | grep -E -q "$PATTERN"; then
               echo "RCON test succeeded! First line matches pattern."
           else
               echo "::error::RCON test failed. First line does not match expected pattern."
-              echo "Expected pattern: Velocity $VERSION (git-<hash>-b$BUILD)"
+              echo "Expected pattern: $PATTERN"
               echo "Actual: $FIRST_LINE"
               exit 1
           fi
