@@ -4,6 +4,8 @@ const util = require('util');
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
+const invalidBuilds = new Set(["491"])
+
 module.exports = async ({ github, context, core }) => {
     const versionsUrl = `https://fill.papermc.io/v3/projects/velocity/versions`;
     core.startGroup(`Fetching versions from ${versionsUrl}`);
@@ -44,7 +46,7 @@ module.exports = async ({ github, context, core }) => {
         lines.forEach(v => lastSet.add(v));
     }
 
-    const newBuilds = builds.filter(v => !lastSet.has(v.id));
+    const newBuilds = builds.filter(v => !invalidBuilds.has(v.id) && !lastSet.has(v.id));
 
     if (newBuilds.length === 0) {
         core.info('No new builds found.');
