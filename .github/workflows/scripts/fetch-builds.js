@@ -5,55 +5,57 @@ const util = require('util');
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
-const versionsUrl = `https://fill.papermc.io/v3/projects/velocity/versions`;
-core.startGroup(`Fetching versions from ${versionsUrl}`);
+module.exports = async function () {
+    const versionsUrl = `https://fill.papermc.io/v3/projects/velocity/versions`;
+    core.startGroup(`Fetching versions from ${versionsUrl}`);
 
-const versionsRes = await fetch(versionsUrl);
-const versionsJson = await versionsRes.json();
-const versions = versionsJson['versions']
-    .filter(v => v.version.support.status === 'SUPPORTED')
-    .map(v => v.version.id)
+    const versionsRes = await fetch(versionsUrl);
+    const versionsJson = await versionsRes.json();
+    const versions = versionsJson['versions']
+        .filter(v => v.version.support.status === 'SUPPORTED')
+        .map(v => v.version.id)
 
-const versionBuilds = await Promise.all(versions.map(async version => {
-    const buildsUrl = `https://fill.papermc.io/v3/projects/velocity/versions/${version}/builds`;
-    core.info(`Fetching builds from ${buildsUrl}`);
-    
-    const buildsRes = await fetch(buildsUrl);
-    const buildsJson = await buildsRes.json();
-    return buildsJson
-        .filter(v => v.channel === 'STABLE')
-        .map(v => {
-            return {
-                id: v.id,
-                version: version,
-                url: v.downloads['server:default'].url,
-            };
-        });
-}))
-const builds = versionBuilds.flatMap(v => v);
-core.endGroup();
+    const versionBuilds = await Promise.all(versions.map(async version => {
+        const buildsUrl = `https://fill.papermc.io/v3/projects/velocity/versions/${version}/builds`;
+        core.info(`Fetching builds from ${buildsUrl}`);
+        
+        const buildsRes = await fetch(buildsUrl);
+        const buildsJson = await buildsRes.json();
+        return buildsJson
+            .filter(v => v.channel === 'STABLE')
+            .map(v => {
+                return {
+                    id: v.id,
+                    version: version,
+                    url: v.downloads['server:default'].url,
+                };
+            });
+    }))
+    const builds = versionBuilds.flatMap(v => v);
+    core.endGroup();
 
-const lastPath = '.last_builds';
-let lastSet = new Set();
-if (existsSync(lastPath)) {
-    const lines = await readFile(lastPath, 'utf-8')
-        .then(v => v.split('\n').map(s => s.trim()));
-    lines.forEach(lastSet.add);
-}
+    const lastPath = '.last_builds';
+    let lastSet = new Set();
+    if (existsSync(lastPath)) {
+        const lines = await readFile(lastPath, 'utf-8')
+            .then(v => v.split('\n').map(s => s.trim()));
+        lines.forEach(lastSet.add);
+    }
 
-const newBuilds = builds.filter(v => !lastSet.add(v.id));
+    const newBuilds = builds.filter(v => !lastSet.add(v.id));
 
-if (newBuilds.length === 0) {
-    core.info('No new builds found.');
-    core.setOutput('matrix', '[]');
-    return;
-}
+    if (newBuilds.length === 0) {
+        core.info('No new builds found.');
+        core.setOutput('matrix', '[]');
+        return;
+    }
 
-core.startGroup(`Detected ${newBuilds.length} new build(s).`);
-newBuilds.forEach(v => core.info(JSON.stringify(v)));
-core.endGroup();
+    core.startGroup(`Detected ${newBuilds.length} new build(s).`);
+    newBuilds.forEach(v => core.info(JSON.stringify(v)));
+    core.endGroup();
 
-const updated = Array.from(lastSet).sort();
-await writeFile(lastPath, updated.join('\n') + '\n');
+    const updated = Array.from(lastSet).sort();
+    await writeFile(lastPath, updated.join('\n') + '\n');
 
-core.setOutput('matrix', JSON.stringify(newBuilds));
+    core.setOutput('matrix', JSON.stringify(newBuilds));
+};
