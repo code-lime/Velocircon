@@ -255,8 +255,6 @@ jobs:
     uses: ./.github/workflows/velocity-test.yml
     with:
       matrix: ${{ needs.build.outputs.matrix }}
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   publish:
     runs-on: ubuntu-latest
     needs: tests

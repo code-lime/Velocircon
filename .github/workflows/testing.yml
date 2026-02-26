@@ -93,5 +93,3 @@ jobs:
     with:
       matrix: ${{ needs.prepare.outputs.matrix }}
       report_latest_release: ${{ needs.prepare.outputs.latest_release }}
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
