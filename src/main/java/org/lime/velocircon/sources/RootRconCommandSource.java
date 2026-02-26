@@ -20,7 +20,6 @@ public class RootRconCommandSource
         super(command, plugin, scheduler, flushMs, flushWaitCount, consoleOutput, componentLogger);
     }
 
-
     @Override
     public @NotNull Tristate getPermissionValue(@NotNull String permission) {
         return Tristate.TRUE;
