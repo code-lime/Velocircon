@@ -37,7 +37,10 @@ module.exports = async ({ github, context, core }) => {
     let lastSet = new Set();
     if (fs.existsSync(lastPath)) {
         const lines = await readFile(lastPath, 'utf-8')
-            .then(v => v.split('\n').map(s => s.trim()));
+            .then(v => v
+                .split('\n')
+                .map(s => s.trim())
+                .filter(Boolean));
         lines.forEach(v => lastSet.add(v));
     }
 
