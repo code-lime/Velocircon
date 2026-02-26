@@ -38,7 +38,7 @@ module.exports = async ({ github, context, core }) => {
     if (fs.existsSync(lastPath)) {
         const lines = await readFile(lastPath, 'utf-8')
             .then(v => v.split('\n').map(s => s.trim()));
-        lines.forEach(lastSet.add);
+        lines.forEach(v => lastSet.add(v));
     }
 
     const newBuilds = builds.filter(v => !lastSet.add(v.id));
