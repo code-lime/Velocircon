@@ -1,5 +1,6 @@
 package org.lime.velocircon;
 
+import com.google.common.base.CaseFormat;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.EventTask;
 import com.velocitypowered.api.event.Subscribe;
@@ -9,11 +10,10 @@ import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bstats.velocity.Metrics;
 import org.lime.velocircon.config.ConfigLoader;
+import org.lime.velocircon.config.EnvLoader;
 import org.lime.velocircon.config.RconConfig;
 import org.slf4j.Logger;
 
@@ -49,10 +49,11 @@ public class Velocircon {
         this.logger = logger;
         this.dataFolder = dataFolder;
         this.metricsFactory = metricsFactory;
+        EnvLoader envLoader = new EnvLoader(BuildConstants.NAME.toUpperCase(), "__", CaseFormat.UPPER_UNDERSCORE, CaseFormat.LOWER_HYPHEN);
         this.rconService = new RconService(
             this,
             proxy,
-            ConfigLoader.create(dataFolder, "rcon", new RconConfig()),
+            ConfigLoader.create(dataFolder, envLoader, "rcon", new RconConfig()),
             logger,
             componentLogger);
     }
