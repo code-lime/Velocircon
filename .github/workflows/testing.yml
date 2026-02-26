@@ -211,7 +211,7 @@ jobs:
 
           cat <<EOF > "$REPORT_FILE"
           ---
-          title: Velocircon ${{ needs.prepare.outputs.latest_release }} test failure for velocity ${{ vars.PAPERMC_VELOCITY_VERSION }}#${{ matrix.id }} 
+          title: Velocircon ${{ needs.prepare.outputs.latest_release }} test failure for velocity ${{ matrix.version }}#${{ matrix.id }} 
           assignees: code-lime
           labels: bug
           ---
