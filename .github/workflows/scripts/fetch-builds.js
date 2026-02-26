@@ -41,7 +41,7 @@ module.exports = async ({ github, context, core }) => {
         lines.forEach(v => lastSet.add(v));
     }
 
-    const newBuilds = builds.filter(v => !lastSet.add(v.id));
+    const newBuilds = builds.filter(v => !lastSet.has(v.id));
 
     if (newBuilds.length === 0) {
         core.info('No new builds found.');
@@ -50,7 +50,10 @@ module.exports = async ({ github, context, core }) => {
     }
 
     core.startGroup(`Detected ${newBuilds.length} new build(s).`);
-    newBuilds.forEach(v => core.info(JSON.stringify(v)));
+    newBuilds.forEach(v => {
+        lastSet.add(v.id);
+        core.info(JSON.stringify(v));
+    });
     core.endGroup();
 
     const updated = Array.from(lastSet).sort();
