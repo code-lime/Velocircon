@@ -1,7 +1,7 @@
 package org.lime.velocircon.permissions;
 
 import com.velocitypowered.api.permission.Tristate;
-import org.lime.velocircon.RconConfig;
+import org.lime.velocircon.config.RconConfig;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;

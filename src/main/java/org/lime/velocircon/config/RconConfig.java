@@ -1,4 +1,4 @@
-package org.lime.velocircon;
+package org.lime.velocircon.config;
 
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 

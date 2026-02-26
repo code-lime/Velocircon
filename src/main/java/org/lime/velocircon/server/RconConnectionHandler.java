@@ -9,7 +9,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.ComponentEncoder;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.lime.velocircon.RconConfig;
+import org.lime.velocircon.config.RconConfig;
 import org.slf4j.Logger;
 
 import java.nio.charset.Charset;

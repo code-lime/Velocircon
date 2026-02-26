@@ -9,6 +9,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.jetbrains.annotations.Nullable;
+import org.lime.velocircon.config.ConfigLoader;
+import org.lime.velocircon.config.RconConfig;
 import org.lime.velocircon.permissions.PermissionFactory;
 import org.lime.velocircon.server.RconBinder;
 import org.lime.velocircon.server.RconServer;

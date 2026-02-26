@@ -5,7 +5,7 @@ import io.netty.channel.*;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.util.concurrent.GlobalEventExecutor;
-import org.lime.velocircon.RconConfig;
+import org.lime.velocircon.config.RconConfig;
 import org.lime.velocircon.utils.NettyFutureUtils;
 import org.slf4j.Logger;
 

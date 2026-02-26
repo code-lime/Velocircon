@@ -13,6 +13,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bstats.velocity.Metrics;
+import org.lime.velocircon.config.ConfigLoader;
+import org.lime.velocircon.config.RconConfig;
 import org.slf4j.Logger;
 
 import java.io.IOException;
