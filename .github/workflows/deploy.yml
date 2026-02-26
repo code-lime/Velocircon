@@ -327,7 +327,7 @@ jobs:
           token: ${{ secrets.MODRINTH_TOKEN }}
           files: ${{ steps.jars.outputs.files }}
       - name: Hangar Release
-        uses: milkdrinkers/Hangar-Publish@v1
+        uses: milkdrinkers/Hangar-Publish@v2
         with:
           slug: ${{ vars.HANGAR_PROJECT_ID }}
           version: ${{ steps.metadata.outputs.version }}
