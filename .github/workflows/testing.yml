@@ -41,62 +41,11 @@ jobs:
           ref: build-state
           fetch-depth: 0
 
-      - name: Fetch new builds
-        id: fetch
-        run: |
-          set -euo pipefail
-          echo "Fetching builds from PaperMC API..."
-          if ! curl -fsSL "https://fill.papermc.io/v3/projects/velocity/versions/${{ vars.PAPERMC_VELOCITY_VERSION }}/builds" -o builds.json; then
-            echo "::error::Failed to fetch builds.json from PaperMC API."
-            exit 1
-          fi
-          if ! jq empty builds.json 2>/dev/null; then
-            echo "::error::Invalid JSON received from API."
-            cat builds.json
-            exit 1
-          fi
-          echo "Builds successfully fetched."
-      - name: Determine new builds
+      - name: Fetch builds to matrix
         id: set-matrix
-        run: |
-          set -euo pipefail
-
-          if [ ! -f builds.json ]; then
-            echo "::error::Missing builds.json file. Previous step may have failed."
-            exit 1
-          fi
-
-          echo "Extracting build IDs and download URLs..."
-          jq -c '.[] | {id: .id, url: .downloads["server:default"].url}' builds.json > all_builds.txt
-
-          touch .last_builds
-          sort -u .last_builds -o .last_builds || true
-
-          NEW_BUILDS_FILE=new_builds.txt
-          > "$NEW_BUILDS_FILE"
-          while read line; do
-            ID=$(echo "$line" | jq -r '.id')
-            if ! grep -qx "$ID" .last_builds; then
-              echo "$line" >> "$NEW_BUILDS_FILE"
-            fi
-          done < all_builds.txt
-
-          if [ ! -s "$NEW_BUILDS_FILE" ]; then
-            echo "No new builds found."
-            echo "matrix=[]" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "New builds detected:"
-          cat "$NEW_BUILDS_FILE"
-
-          MATRIX_JSON=$(jq -c -s '.' "$NEW_BUILDS_FILE")
-          echo "matrix=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
-
-          while read line; do
-            echo "$line" | jq -r '.id' >> .last_builds
-          done < "$NEW_BUILDS_FILE"
-          sort -u .last_builds -o .last_builds        
+        uses: actions/github-script@v8
+        with:
+          script: await require('.github/workflows/scripts/fetch-builds.js')();
 
       - name: Commit updated .last_builds
         if: steps.set-matrix.outputs.matrix != '[]'
@@ -216,7 +165,7 @@ jobs:
           FIRST_LINE=$(timeout "$RCON_TIMEOUT" ./tools/rcon-cli --host 127.0.0.1 --port 25575 --password PASSWORD velocity info | tee rcon.log | head -n 1)
           FIRST_LINE=$(echo "$FIRST_LINE" | sed -r 's/\x1B\[[0-9;]*[mK]//g' | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
-          VERSION="${{ vars.PAPERMC_VELOCITY_VERSION }}"
+          VERSION="${{ matrix.version }}"
           BUILD="${{ matrix.id }}"
           if echo "$FIRST_LINE" | grep -E -q "^Velocity ${VERSION} \(git-[0-9a-fA-F]+-b${BUILD}\)$"; then
               echo "RCON test succeeded! First line matches pattern."
@@ -251,7 +200,7 @@ jobs:
           # Test failure report
 
           **Velocity Build ID:** ${{ matrix.id }}
-          **Velocity Version:** ${{ vars.PAPERMC_VELOCITY_VERSION }}
+          **Velocity Version:** ${{ matrix.version }}
           **Velocity Build URL:** [Download Link](${{ matrix.url }})
           **Velocircon Release:** ${{ needs.prepare.outputs.latest_release }}
 
