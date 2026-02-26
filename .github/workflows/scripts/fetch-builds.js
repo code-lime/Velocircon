@@ -24,7 +24,7 @@ module.exports = async ({ github, context, core }) => {
             .filter(v => v.channel === 'STABLE')
             .map(v => {
                 return {
-                    id: v.id,
+                    id: `${v.id}`,
                     version: version,
                     url: v.downloads['server:default'].url,
                 };
