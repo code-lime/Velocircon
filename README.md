@@ -142,3 +142,5 @@ Found a bug or want to suggest an improvement? Please open an issue or submit a 
 ---
 
 **Author:** [@code-lime](https://github.com/code-lime)
+
+[![Velocircon bStats](https://github.com/code-lime/charts/blob/master/output/bstats/velocircon.png?raw=true)](https://bstats.org/plugin/velocity/Velocircon/26312)
