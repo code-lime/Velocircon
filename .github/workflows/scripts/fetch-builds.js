@@ -58,7 +58,7 @@ module.exports = async ({ github, context, core }) => {
     const buildsList = [];
     newBuilds.forEach(v => {
         lastSet.add(v.id);
-        buildsList.add(v.id);
+        buildsList.push(v.id);
         core.info(JSON.stringify(v));
     });
     core.endGroup();
