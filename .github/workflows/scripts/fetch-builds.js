@@ -55,8 +55,10 @@ module.exports = async ({ github, context, core }) => {
     }
 
     core.startGroup(`Detected ${newBuilds.length} new build(s).`);
+    const buildsList = [];
     newBuilds.forEach(v => {
         lastSet.add(v.id);
+        buildsList.add(v.id);
         core.info(JSON.stringify(v));
     });
     core.endGroup();
@@ -65,4 +67,5 @@ module.exports = async ({ github, context, core }) => {
     await writeFile(lastPath, updated.join('\n') + '\n');
 
     core.setOutput('matrix', JSON.stringify(newBuilds));
+    core.setOutput('builds', JSON.stringify(buildsList));
 };

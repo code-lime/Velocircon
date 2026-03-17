@@ -63,7 +63,7 @@ jobs:
         if: steps.set-matrix.outputs.matrix != '[]'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update last processed builds"
+          commit_message: "Tested: ${{ steps.set-matrix.outputs.builds }}"
           branch: build-state
           file_pattern: .last_builds
           push_options: --force
