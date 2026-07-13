@@ -1,8 +1,8 @@
 buildscript {
     configurations.classpath.resolutionStrategy.eachDependency { details ->
         if (details.requested.group == 'org.ow2.asm') {
-            details.useVersion '9.5'
-            details.because 'Shadow plugin needs ASM ≥9.5 to parse Java 21 classes'
+            details.useVersion '9.8'
+            details.because 'Shadow plugin needs ASM ≥9.8 to parse Java 25 classes'
         }
     }
 }
