@@ -2,13 +2,14 @@ package org.lime.velocircon.sources;
 
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.scheduler.Scheduler;
-import net.kyori.adventure.audience.MessageType;
-import net.kyori.adventure.identity.Identity;
+import net.kyori.adventure.chat.ChatType;
+import net.kyori.adventure.chat.SignedMessage;
 import net.kyori.adventure.permission.PermissionChecker;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,12 +51,23 @@ public abstract class BaseRconCommandSource
     }
 
     @Override
-    public void sendMessage(@NotNull Identity identity, @NotNull Component message, @NotNull MessageType messageType) {
+    public void sendMessage(final @NonNull Component message) {
         lines.add(message);
         if (consoleOutput)
             componentLogger.info(Component.empty()
                     .append(Component.text("[/"+command+"] "))
                     .append(message));
+    }
+    @Override
+    public void sendMessage(final @NonNull Component message, final ChatType.@NonNull Bound boundChatType) {
+        sendMessage(message);
+    }
+    @Override
+    public void sendMessage(final @NonNull SignedMessage signedMessage, final ChatType.@NonNull Bound boundChatType) {
+        var message = signedMessage.unsignedContent();
+        if (message == null)
+            message = Component.text(signedMessage.message());
+        sendMessage(message);
     }
 
     @Override
