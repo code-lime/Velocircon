@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7
+
+- Support any velocity 3.5-4.0+ builds
+  - Removed: Drop legacy `adventure-platform-facet` support
+
 ## 1.0.6
 
 - Added: Configuration values can now be overridden using environment variables (e.g., `VELOCIRCON__PORT=1234`)
