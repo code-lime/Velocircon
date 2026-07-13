@@ -5,7 +5,6 @@ import com.velocitypowered.api.scheduler.Scheduler;
 import net.kyori.adventure.audience.MessageType;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.permission.PermissionChecker;
-import net.kyori.adventure.platform.facet.FacetPointers;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -21,7 +20,6 @@ public abstract class BaseRconCommandSource
         implements CommandSource {
     private final Pointers pointers = CommandSource.super.pointers().toBuilder()
             .withDynamic(PermissionChecker.POINTER, this::getPermissionChecker)
-            .withStatic(FacetPointers.TYPE, FacetPointers.Type.CONSOLE)
             .build();
 
     private final ConcurrentLinkedQueue<Component> lines = new ConcurrentLinkedQueue<>();
