@@ -4,49 +4,65 @@ const util = require('util');
 const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
-const invalidBuilds = new Set(["491"])
+const invalidBuilds = new Set(['3.4.0-SNAPSHOT#491']);
 
 module.exports = async ({ github, context, core }) => {
+    const userAgent = `Velocircon GitHub Actions (https://github.com/${context.repo.owner}/${context.repo.repo})`;
+    const fetchJson = async url => {
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'application/json',
+                'User-Agent': userAgent,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`PaperMC request failed: ${response.status} ${response.statusText} (${url})`);
+        }
+
+        return response.json();
+    };
+
     const versionsUrl = `https://fill.papermc.io/v3/projects/velocity/versions`;
     core.startGroup(`Fetching versions from ${versionsUrl}`);
 
-    const versionsRes = await fetch(versionsUrl);
-    const versionsJson = await versionsRes.json();
+    const versionsJson = await fetchJson(versionsUrl);
     const versions = versionsJson['versions']
         .filter(v => v.version.support.status === 'SUPPORTED')
-        .map(v => v.version.id)
+        .map(v => v.version.id);
 
     const versionBuilds = await Promise.all(versions.map(async version => {
         const buildsUrl = `https://fill.papermc.io/v3/projects/velocity/versions/${version}/builds`;
         core.info(`Fetching builds from ${buildsUrl}`);
-        
-        const buildsRes = await fetch(buildsUrl);
-        const buildsJson = await buildsRes.json();
+
+        const buildsJson = await fetchJson(buildsUrl);
         return buildsJson
             .filter(v => v.channel === 'STABLE')
             .map(v => {
                 return {
                     id: `${v.id}`,
                     version: version,
+                    key: `${version}#${v.id}`,
                     url: v.downloads['server:default'].url,
                 };
             });
-    }))
+    }));
     const builds = versionBuilds.flatMap(v => v);
     core.endGroup();
 
     const lastPath = '.last_builds';
-    let lastSet = new Set();
+    let storedBuilds = [];
     if (fs.existsSync(lastPath)) {
-        const lines = await readFile(lastPath, 'utf-8')
+        storedBuilds = await readFile(lastPath, 'utf-8')
             .then(v => v
                 .split('\n')
                 .map(s => s.trim())
                 .filter(Boolean));
-        lines.forEach(v => lastSet.add(v));
     }
 
-    const newBuilds = builds.filter(v => !invalidBuilds.has(v.id) && !lastSet.has(v.id));
+    const lastSet = new Set(storedBuilds);
+
+    const newBuilds = builds.filter(v => !invalidBuilds.has(v.key) && !lastSet.has(v.key));
 
     if (newBuilds.length === 0) {
         core.info('No new builds found.');
@@ -57,14 +73,14 @@ module.exports = async ({ github, context, core }) => {
     core.startGroup(`Detected ${newBuilds.length} new build(s).`);
     const buildsList = [];
     newBuilds.forEach(v => {
-        lastSet.add(v.id);
-        buildsList.push(v.id);
+        lastSet.add(v.key);
+        buildsList.push(v.key);
         core.info(JSON.stringify(v));
     });
     core.endGroup();
 
     const updated = Array.from(lastSet).sort();
-    await writeFile(lastPath, updated.join('\n') + '\n');
+    await writeFile(lastPath, `${updated.join('\n')}\n`);
 
     core.setOutput('matrix', JSON.stringify(newBuilds));
     core.setOutput('builds', JSON.stringify(buildsList));

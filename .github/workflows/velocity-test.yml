@@ -14,6 +14,7 @@ on:
 
 jobs:
   process-build:
+    name: Test Velocity ${{ matrix.key }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,7 +29,7 @@ jobs:
 
       - name: Download build jar
         run: |
-          echo "Downloading build #${{ matrix.id }} with JAR from ${{ matrix.url }}"
+          echo "Downloading Velocity ${{ matrix.key }} from ${{ matrix.url }}"
           curl -fsSL "${{ matrix.url }}" -o ./velocity.jar
 
       - name: Download rcon-cli
@@ -135,14 +136,13 @@ jobs:
 
           cat <<EOF > "$REPORT_FILE"
           ---
-          title: Velocircon ${{ inputs.report_latest_release }} test failure for velocity ${{ matrix.version }}#${{ matrix.id }} 
+          title: Velocircon ${{ inputs.report_latest_release }} test failure for Velocity ${{ matrix.key }}
           assignees: code-lime
           labels: bug
           ---
           # Test failure report
 
-          **Velocity Build ID:** ${{ matrix.id }}
-          **Velocity Version:** ${{ matrix.version }}
+          **Velocity Build:** ${{ matrix.key }}
           **Velocity Build URL:** [Download Link](${{ matrix.url }})
           **Velocircon Release:** ${{ inputs.report_latest_release }}
 
