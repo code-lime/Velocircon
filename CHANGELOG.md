@@ -2,7 +2,7 @@
 
 ## 1.0.7
 
-- Support any velocity 3.5-4.0+ builds
+- Support any velocity 3.4-4.0+ builds
   - Removed: Drop legacy `adventure-platform-facet` support
 
 ## 1.0.6
