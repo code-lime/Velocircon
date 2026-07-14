@@ -33,12 +33,10 @@ public class PermissibleRconCommandSource
         Tristate current = Tristate.UNDEFINED;
         for (var permissionFactory : permissionFactories) {
             var value = permissionFactory.check(permission);
-            switch (value) {
-                case FALSE -> {
-                    return Tristate.FALSE;
-                }
-                case TRUE -> current = Tristate.TRUE;
-            }
+            if (value == Tristate.FALSE)
+                return Tristate.FALSE;
+            if (value == Tristate.TRUE)
+                current = Tristate.TRUE;
         }
         return current;
     }

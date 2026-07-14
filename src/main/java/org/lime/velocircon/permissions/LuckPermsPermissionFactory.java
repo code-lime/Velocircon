@@ -20,10 +20,12 @@ public record LuckPermsPermissionFactory(
             return Tristate.TRUE;
         return Optional.ofNullable(luckPerms.getGroupManager().getGroup(groupName))
                 .map(v -> v.getCachedData().getPermissionData(QueryOptions.nonContextual()).checkPermission(permission))
-                .map(v -> switch (v) {
-                    case TRUE -> Tristate.TRUE;
-                    case FALSE -> Tristate.FALSE;
-                    default -> Tristate.UNDEFINED;
+                .map(v -> {
+                    if (v == net.luckperms.api.util.Tristate.TRUE)
+                        return Tristate.TRUE;
+                    if (v == net.luckperms.api.util.Tristate.FALSE)
+                        return Tristate.FALSE;
+                    return Tristate.UNDEFINED;
                 })
                 .orElse(Tristate.UNDEFINED);
     }

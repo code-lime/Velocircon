@@ -29,7 +29,7 @@ public class RconBinder implements Closeable {
     }
 
     public CompletableFuture<ChannelGroup> bind(InetSocketAddress address, RconConfig config) {
-        ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+        DefaultChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
 
         ServerBootstrap bootstrap = new ServerBootstrap()
                 .group(bossGroup, workerGroup)
@@ -52,14 +52,14 @@ public class RconBinder implements Closeable {
                     } else {
                         logger.info("RCON server bound to {}", channel.localAddress());
                         channels.add(channel);
-                        return CompletableFuture.completedFuture(channels);
+                        return CompletableFuture.<ChannelGroup>completedFuture(channels);
                     }
                 })
                 .thenCompose(v -> v);
     }
 
     public void close() {
-        bossGroup.close();
-        workerGroup.close();
+        bossGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
     }
 }

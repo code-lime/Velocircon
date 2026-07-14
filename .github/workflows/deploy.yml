@@ -184,10 +184,12 @@ jobs:
             echo "DEPENDENCIES=$DEPENDENCIES_OUT" >> $GITHUB_OUTPUT
           fi
 
-      - name: Set up JDK 21
+      - name: Set up JDK 25 compiler and JDK 21 Gradle runtime
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: |
+            25
+            21
           distribution: 'oracle'
 
       - name: Make Gradle Wrapper Executable

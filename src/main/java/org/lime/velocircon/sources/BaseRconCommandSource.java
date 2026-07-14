@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class BaseRconCommandSource
         implements CommandSource {
-    private final Pointers pointers = CommandSource.super.pointers().toBuilder()
+    private final Pointers pointers = Pointers.builder()
             .withDynamic(PermissionChecker.POINTER, this::getPermissionChecker)
             .build();
 

@@ -1,3 +1,6 @@
+import org.gradle.api.attributes.java.TargetJvmVersion
+import ru.vyarus.gradle.plugin.animalsniffer.signature.BuildSignatureTask
+
 buildscript {
     configurations.classpath.resolutionStrategy.eachDependency { details ->
         if (details.requested.group == 'org.ow2.asm') {
@@ -12,6 +15,7 @@ plugins {
     id 'maven-publish'
     id "fr.brouillard.oss.gradle.jgitver" version "+"
     id "com.github.johnrengelman.shadow" version "+"
+    id "ru.vyarus.animalsniffer" version "2.0.1"
 }
 
 //<editor-fold desc="Settings: Plugin">
@@ -28,6 +32,75 @@ dependencies {
 apply from: 'https://raw.githubusercontent.com/code-lime/org.lime.core/refs/tags/3.1.1/global.gradle'
 apply from: 'https://raw.githubusercontent.com/code-lime/org.lime.core/refs/tags/3.1.1/version.gradle'
 apply from: 'https://raw.githubusercontent.com/code-lime/org.lime.core/refs/tags/3.1.1/remote.gradle'
+
+//<editor-fold desc="Settings: Plugin: MultiVersion Validator">
+
+// Velocity 4 java 25
+def compilerJavaVersion = providers.gradleProperty('javaCompilerVersion').get().toInteger()
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(compilerJavaVersion)
+}
+
+// Gradle normally derives this consumer attribute from targetCompatibility
+// and would reject the Java 25 Velocity API before javac gets a chance to read
+// it. These classpaths are build-time only; the produced classes stay at 21.
+[configurations.compileClasspath, configurations.annotationProcessor].each { configuration ->
+    configuration.attributes {
+        attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, compilerJavaVersion)
+    }
+}
+
+// Complete minimum-runtime classpath used to build the Velocity 3.4 API
+// signature. Production sources are still compiled only once against Velocity 4.
+configurations {
+    velocity34Api.extendsFrom implementation
+}
+dependencies {
+    velocity34Api "com.velocitypowered:velocity-api:${versionVelocity34}"
+    velocity34Api "org.bstats:bstats-velocity:${versionBStats}"
+}
+
+// Inspect production bytecode against Velocity 3.4. This detects
+// source-compatible JVM descriptor changes such as Adventure 4 -> 5
+// Buildable.toBuilder().
+def velocity34ApiSignature = tasks.register('velocity34ApiSignature', BuildSignatureTask) {
+    description = "Builds an API signature for the Velocity ${versionVelocity34} runtime"
+    files configurations.velocity34Api
+    outputName = 'velocity34-api'
+}
+
+animalsniffer {
+    toolVersion = '1.27'
+    defaultTargets 'main'
+    signatures = velocity34ApiSignature.map {it.outputFiles}.get()
+
+    // Otherwise jars from main's newer compile classpath would make every
+    // new API reference appear valid and mask the incompatibility.
+    excludeJars '*'
+
+    // Java 9+ runtime signatures are not published by Animal Sniffer. JDK API
+    // compatibility is handled by the JavaCompile settings from global.gradle.
+    ignore = [
+            'java.*',
+            'javax.*',
+            'jdk.*',
+            'sun.*',
+            'com.sun.*',
+            'org.ietf.*',
+            'org.w3c.*',
+            'org.xml.*',
+    ]
+}
+
+tasks.register('validateVelocity34BinaryCompatibility') {
+    group = 'verification'
+    description = "Checks production bytecode against the Velocity ${versionVelocity34} runtime"
+    dependsOn tasks.named('animalsnifferMain')
+}
+tasks.named('check') {
+    dependsOn tasks.named('validateVelocity34BinaryCompatibility')
+}
+//</editor-fold>
 
 println "Project version: $version"
 
