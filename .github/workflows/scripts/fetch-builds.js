@@ -5,6 +5,7 @@ const readFile = util.promisify(fs.readFile);
 const writeFile = util.promisify(fs.writeFile);
 
 const invalidBuilds = new Set(['3.4.0-SNAPSHOT#491']);
+const invalidVersions = new Set(['3.3.0-SNAPSHOT','3.2.0-SNAPSHOT','3.1.2-SNAPSHOT','3.1.1','3.1.1-SNAPSHOT','3.1.0','1.1.9','1.0.10']);
 
 module.exports = async ({ github, context, core }) => {
     const userAgent = `Velocircon GitHub Actions (https://github.com/${context.repo.owner}/${context.repo.repo})`;
@@ -28,7 +29,7 @@ module.exports = async ({ github, context, core }) => {
 
     const versionsJson = await fetchJson(versionsUrl);
     const versions = versionsJson['versions']
-        .filter(v => v.version.support.status === 'SUPPORTED')
+        .filter(v => !invalidVersions.has(v.version.id))
         .map(v => v.version.id);
 
     const versionBuilds = await Promise.all(versions.map(async version => {
